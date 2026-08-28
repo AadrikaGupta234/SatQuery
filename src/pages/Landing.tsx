@@ -11,29 +11,21 @@ import { Satellite, ArrowRight, Zap } from "lucide-react";
 const slideData = [
   {
     title: "Change Detection",
-    description:
-      "AI identifies deforestation, urban growth, and flood damage across satellite imagery archives.",
     button: "Try it",
     src: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=3272&auto=format&fit=crop",
   },
   {
     title: "Before / After",
-    description:
-      "Compare any two dates side-by-side with interactive split-view and TiTiler-rendered COGs.",
     button: "Compare",
     src: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=3544&auto=format&fit=crop",
   },
   {
     title: "Natural Language Queries",
-    description:
-      'Ask questions like "Show urban expansion in Delhi 2021–2025" and get mapped results instantly.',
     button: "Ask now",
     src: "https://images.unsplash.com/photo-1614728263952-84ea256f9679?q=80&w=3432&auto=format&fit=crop",
   },
   {
     title: "Multi-Region Analysis",
-    description:
-      "From Amazon deforestation to Mekong floods — analyze any region on Earth in seconds.",
     button: "Explore",
     src: "https://images.unsplash.com/photo-1507400492013-162706c8c05e?q=80&w=3542&auto=format&fit=crop",
   },
