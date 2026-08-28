@@ -25,7 +25,7 @@ const slideData = [
   {
     title: "Natural Language Queries",
     description:
-      "Ask questions like \"Show urban expansion in Delhi 2021–2025\" and get mapped results instantly.",
+      'Ask questions like "Show urban expansion in Delhi 2021–2025" and get mapped results instantly.',
     button: "Ask now",
     src: "https://images.unsplash.com/photo-1614728263952-84ea256f9679?q=80&w=3432&auto=format&fit=crop",
   },
@@ -42,15 +42,15 @@ export default function Landing() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-background bg-grid text-foreground">
-      {/* Nav */}
+    <div className="min-h-[100dvh] bg-background bg-grid text-foreground">
+      {/* ── Nav ─────────────────────────────────────────────────── */}
       <header className="relative z-10 border-b border-border/50">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex size-8 items-center justify-center rounded-md bg-primary/15 text-primary">
-              <Satellite className="size-4" />
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            <div className="flex size-7 items-center justify-center rounded-md bg-primary/15 text-primary sm:size-8">
+              <Satellite className="size-3.5 sm:size-4" />
             </div>
-            <span className="text-sm font-semibold tracking-tight">
+            <span className="text-xs font-semibold tracking-tight sm:text-sm">
               satQuery
             </span>
           </div>
@@ -65,38 +65,39 @@ export default function Landing() {
         </div>
       </header>
 
-      {/* Hero */}
+      {/* ── Hero ────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden">
         <Spotlight />
-        <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[600px] w-[900px] -translate-x-1/2 -translate-y-1/3 rounded-full bg-primary/[0.06] blur-[120px]" />
+        <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[300px] w-[500px] -translate-x-1/2 -translate-y-1/3 rounded-full bg-primary/[0.06] blur-[120px] sm:h-[600px] sm:w-[900px]" />
 
-        <div className="mx-auto max-w-4xl px-6 pb-20 pt-24 text-center sm:pt-32">
+        <div className="mx-auto max-w-4xl px-4 pb-12 pt-16 text-center sm:px-6 sm:pb-20 sm:pt-24 lg:pt-32">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-xs text-muted-foreground backdrop-blur-sm">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-[10px] sm:text-xs text-muted-foreground backdrop-blur-sm sm:mb-6">
               <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse-dot" />
               Satellite Imagery Analysis
             </div>
 
-            <div className="h-28 w-full sm:h-32 lg:h-36">
+            {/* TextHoverEffect: smaller viewBox on mobile */}
+            <div className="h-20 w-full sm:h-28 lg:h-36">
               <TextHoverEffect text="SATQUERY" duration={0.15} />
             </div>
 
-            <div className="mx-auto mt-5 max-w-xl">
+            <div className="mx-auto mt-4 max-w-xl sm:mt-5">
               <TextGenerateEffect
                 words="Ask questions about satellite imagery in natural language. Get change masks, before/after comparisons, and confidence-scored results — all on an interactive map."
-                className="text-base leading-relaxed text-muted-foreground sm:text-lg text-center"
+                className="text-sm leading-relaxed text-muted-foreground sm:text-base lg:text-lg text-center"
                 duration={0.4}
               />
             </div>
 
-            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <div className="mt-6 flex flex-col items-center gap-3 sm:mt-8 sm:flex-row sm:justify-center">
               <Button
                 size="lg"
-                className="gap-2 px-6"
+                className="gap-2 px-5 sm:px-6"
                 onClick={() => navigate("/auth")}
               >
                 Start analyzing
@@ -105,7 +106,7 @@ export default function Landing() {
               <Button
                 variant="outline"
                 size="lg"
-                className="gap-2 px-6"
+                className="gap-2 px-5 sm:px-6"
                 onClick={() => navigate("/auth")}
               >
                 <Zap className="size-4" />
@@ -116,19 +117,19 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Features — 3D Carousel */}
-      <section className="relative z-10 border-t border-border/50 py-20">
+      {/* ── Features — 3D Carousel ─────────────────────────────── */}
+      <section className="relative z-10 border-t border-border/50 py-12 sm:py-20">
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-14"
+          className="mb-8 text-center sm:mb-14"
         >
-          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+          <h2 className="text-xl font-semibold tracking-tight sm:text-2xl lg:text-3xl">
             Built for analysis
           </h2>
-          <p className="mt-2 text-muted-foreground">
+          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
             From query to change mask in seconds. Nothing you don't need.
           </p>
         </motion.div>
@@ -136,9 +137,9 @@ export default function Landing() {
         <Carousel slides={slideData} />
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 py-8">
-        <div className="mx-auto max-w-6xl px-6 text-center text-xs text-muted-foreground/60">
+      {/* ── Footer ──────────────────────────────────────────────── */}
+      <footer className="border-t border-border/50 py-6 sm:py-8">
+        <div className="mx-auto max-w-6xl px-4 text-center text-[10px] sm:text-xs text-muted-foreground/60 sm:px-6">
           satQuery v1.0 — Satellite Imagery Analysis
         </div>
       </footer>

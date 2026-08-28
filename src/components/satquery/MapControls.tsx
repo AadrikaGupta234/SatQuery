@@ -62,7 +62,9 @@ export default function MapControls() {
       confidence: analysis.confidence,
       explanation: analysis.explanation,
       activeFilters: analysis.activeFilters,
-      activeLayers: Object.entries(map.activeLayers).filter(([,v]) => v).map(([k]) => k),
+      activeLayers: Object.entries(map.activeLayers)
+        .filter(([, v]) => v)
+        .map(([k]) => k),
       imagery: analysis.imagery
         ? { dates: analysis.imagery.dates.map((d) => d.toISOString()) }
         : null,
@@ -80,27 +82,29 @@ export default function MapControls() {
   };
 
   return (
-    <div className="absolute bottom-4 left-4 z-10 flex flex-col gap-1.5">
-      <ControlButton
-        icon={<PanelLeftClose className="size-4" />}
-        tooltip={panelOpen ? "Collapse panel" : "Expand panel"}
-        onClick={togglePanel}
-      />
+    <div className="absolute bottom-3 left-3 z-10 flex flex-col gap-1 sm:bottom-4 sm:left-4 sm:gap-1.5">
+      {/* Desktop: panel toggle. Mobile: hidden (chat button handles it) */}
+      <div className="hidden md:block">
+        <ControlButton
+          icon={<PanelLeftClose className="size-3.5 sm:size-4" />}
+          tooltip={panelOpen ? "Collapse panel" : "Expand panel"}
+          onClick={togglePanel}
+        />
+        <div className="my-0.5 h-px bg-border/50" />
+      </div>
 
-      <div className="my-0.5 h-px bg-border/50" />
-
       <ControlButton
-        icon={<ZoomIn className="size-4" />}
+        icon={<ZoomIn className="size-3.5 sm:size-4" />}
         tooltip="Zoom in"
         onClick={handleZoomIn}
       />
       <ControlButton
-        icon={<ZoomOut className="size-4" />}
+        icon={<ZoomOut className="size-3.5 sm:size-4" />}
         tooltip="Zoom out"
         onClick={handleZoomOut}
       />
       <ControlButton
-        icon={<Maximize2 className="size-4" />}
+        icon={<Maximize2 className="size-3.5 sm:size-4" />}
         tooltip="Reset view"
         onClick={handleReset}
       />
@@ -108,20 +112,20 @@ export default function MapControls() {
       <div className="my-0.5 h-px bg-border/50" />
 
       <ControlButton
-        icon={<SplitSquareVertical className="size-4" />}
+        icon={<SplitSquareVertical className="size-3.5 sm:size-4" />}
         tooltip="Before / After split"
         onClick={toggleSplitMode}
         active={splitMode}
         disabled={!imagery}
       />
       <ControlButton
-        icon={<Layers className="size-4" />}
+        icon={<Layers className="size-3.5 sm:size-4" />}
         tooltip={`${layerCount} layers`}
         badge={layerCount}
         onClick={() => {}}
       />
       <ControlButton
-        icon={<Download className="size-4" />}
+        icon={<Download className="size-3.5 sm:size-4" />}
         tooltip="Export analysis"
         onClick={handleExport}
       />
@@ -151,14 +155,14 @@ function ControlButton({
           onClick={onClick}
           disabled={disabled}
           className={cn(
-            "relative flex size-9 items-center justify-center rounded-md border border-border/60 bg-card/80 text-muted-foreground backdrop-blur-sm transition-all hover:bg-card hover:text-foreground",
+            "relative flex size-8 items-center justify-center rounded-md border border-border/60 bg-card/80 text-muted-foreground backdrop-blur-sm transition-all hover:bg-card hover:text-foreground sm:size-9",
             active && "border-primary/40 bg-primary/10 text-primary",
             disabled && "opacity-40 pointer-events-none"
           )}
         >
           {icon}
           {badge !== undefined && badge > 0 && (
-            <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
+            <span className="absolute -right-1 -top-1 flex size-3.5 items-center justify-center rounded-full bg-primary text-[8px] font-bold text-primary-foreground sm:size-4 sm:text-[9px]">
               {badge}
             </span>
           )}

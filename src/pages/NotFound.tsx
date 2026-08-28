@@ -12,12 +12,12 @@ export default function NotFound() {
       <Spotlight />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center justify-center relative z-10">
-        <div className="max-w-5xl mx-auto relative px-4">
-          <div className="flex items-center justify-center min-h-[200px]">
+      <div className="flex-1 flex flex-col items-center justify-center relative z-10 px-4">
+        <div className="max-w-5xl mx-auto relative">
+          <div className="flex items-center justify-center min-h-[160px] sm:min-h-[200px]">
             <div className="text-center">
-              <h1 className="text-4xl font-bold text-foreground mb-4">404</h1>
-              <p className="text-lg text-muted-foreground">Page Not Found</p>
+              <h1 className="text-5xl sm:text-6xl font-bold text-foreground mb-3 sm:mb-4">404</h1>
+              <p className="text-base sm:text-lg text-muted-foreground">Page Not Found</p>
             </div>
           </div>
         </div>

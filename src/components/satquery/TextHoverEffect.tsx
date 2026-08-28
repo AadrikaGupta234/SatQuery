@@ -14,9 +14,17 @@ export default function TextHoverEffect({
   const [cursor, setCursor] = useState({ x: 0, y: 0 });
   const [hovered, setHovered] = useState(false);
   const [maskPosition, setMaskPosition] = useState({ cx: "50%", cy: "50%" });
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    if (svgRef.current && cursor.x !== null && cursor.y !== null) {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  useEffect(() => {
+    if (svgRef.current) {
       const svgRect = svgRef.current.getBoundingClientRect();
       const cxPercentage = ((cursor.x - svgRect.left) / svgRect.width) * 100;
       const cyPercentage = ((cursor.y - svgRect.top) / svgRect.height) * 100;
@@ -27,17 +35,27 @@ export default function TextHoverEffect({
     }
   }, [cursor]);
 
+  const textClass = isMobile
+    ? "fill-transparent text-4xl sm:text-5xl font-bold"
+    : "fill-transparent text-5xl sm:text-6xl lg:text-7xl font-bold";
+
+  const strokeClass = isMobile
+    ? "fill-transparent stroke-neutral-200 text-4xl sm:text-5xl font-bold"
+    : "fill-transparent stroke-neutral-200 text-5xl sm:text-6xl lg:text-7xl font-bold";
+
   return (
     <svg
       ref={svgRef}
       width="100%"
       height="100%"
-      viewBox="0 0 600 120"
+      viewBox={isMobile ? "0 0 400 80" : "0 0 600 120"}
       xmlns="http://www.w3.org/2000/svg"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onMouseMove={(e) => setCursor({ x: e.clientX, y: e.clientY })}
       className="select-none"
+      role="img"
+      aria-label={text}
     >
       <defs>
         <linearGradient
@@ -87,7 +105,7 @@ export default function TextHoverEffect({
         textAnchor="middle"
         dominantBaseline="middle"
         strokeWidth="0.3"
-        className="fill-transparent stroke-neutral-200 text-7xl font-bold"
+        className={strokeClass}
         style={{
           fontFamily: "helvetica, arial, sans-serif",
           opacity: hovered ? 0.7 : 0,
@@ -103,7 +121,7 @@ export default function TextHoverEffect({
         textAnchor="middle"
         dominantBaseline="middle"
         strokeWidth="0.3"
-        className="fill-transparent stroke-neutral-200 text-7xl font-bold"
+        className={strokeClass}
         style={{ fontFamily: "helvetica, arial, sans-serif" }}
         initial={{ strokeDashoffset: 1000, strokeDasharray: 1000 }}
         animate={{ strokeDashoffset: 0, strokeDasharray: 1000 }}
@@ -121,7 +139,7 @@ export default function TextHoverEffect({
         stroke="url(#textGradient)"
         strokeWidth="0.3"
         mask="url(#textMask)"
-        className="fill-transparent text-7xl font-bold"
+        className={textClass}
         style={{ fontFamily: "helvetica, arial, sans-serif" }}
       >
         {text}

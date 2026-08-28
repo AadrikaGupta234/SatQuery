@@ -11,7 +11,8 @@ import MapOrchestrator from "./MapOrchestrator";
 import MapLibreBasemap from "./MapLibreBasemap";
 import MapControls from "./MapControls";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, MessageSquare, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // ── Follow-up filter parser ──────────────────────────────────────
 function parseFollowUpFilter(query: string): FeatureFilter | null {
@@ -127,18 +128,18 @@ export default function SatQueryApp() {
   };
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
-      {/* Top bar */}
-      <header className="z-20 flex h-11 shrink-0 items-center justify-between border-b border-border/50 bg-card/60 px-4 backdrop-blur-md">
-        <div className="flex items-center gap-3">
+    <div className="flex h-[100dvh] w-screen flex-col overflow-hidden bg-background">
+      {/* ── Top bar ────────────────────────────────────────────── */}
+      <header className="z-20 flex h-11 shrink-0 items-center justify-between border-b border-border/50 bg-card/60 px-3 sm:px-4 backdrop-blur-md">
+        <div className="flex items-center gap-2 sm:gap-3">
           <h1 className="text-xs font-semibold tracking-tight">satQuery</h1>
-          <span className="h-3 w-px bg-border/50" />
-          <span className="text-[11px] text-muted-foreground">
+          <span className="hidden h-3 w-px bg-border/50 sm:block" />
+          <span className="hidden text-[11px] text-muted-foreground sm:inline">
             Satellite Imagery Analysis
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="hidden items-center gap-1.5 text-[11px] text-muted-foreground md:flex">
             <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse-dot" />
             Connected
           </div>
@@ -157,8 +158,8 @@ export default function SatQueryApp() {
         </div>
       </header>
 
-      {/* Main layout */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* ── Desktop layout (≥md): sidebar + map ────────────────── */}
+      <div className="hidden md:flex flex-1 overflow-hidden">
         {/* Left — ChatInterface */}
         <div
           className="flex flex-col border-r border-border/50 transition-all duration-300"
@@ -186,6 +187,54 @@ export default function SatQueryApp() {
           </MapOrchestrator>
           <MapControls />
           <ResultsPanel />
+        </div>
+      </div>
+
+      {/* ── Mobile layout (<md): full-screen map + bottom sheet chat */}
+      <div className="flex flex-1 flex-col md:hidden overflow-hidden">
+        {/* Full-screen map */}
+        <div className="relative flex-1">
+          <MapOrchestrator>
+            <MapLibreBasemap />
+          </MapOrchestrator>
+          <MapControls />
+          <ResultsPanel />
+        </div>
+
+        {/* Mobile chat toggle button */}
+        <button
+          onClick={() => useMapStore.getState().togglePanel()}
+          className={cn(
+            "absolute bottom-4 right-4 z-30 flex size-12 items-center justify-center rounded-full border border-border/60 bg-card/90 shadow-lg backdrop-blur-md transition-all",
+            "active:scale-95",
+            panelOpen && "bg-primary/10 border-primary/40 text-primary"
+          )}
+          aria-label={panelOpen ? "Close chat" : "Open chat"}
+        >
+          {panelOpen ? (
+            <X className="size-5" />
+          ) : (
+            <MessageSquare className="size-5" />
+          )}
+        </button>
+
+        {/* Mobile chat bottom sheet */}
+        <div
+          className={cn(
+            "absolute inset-x-0 bottom-0 z-20 transition-transform duration-300 ease-in-out",
+            panelOpen ? "translate-y-0" : "translate-y-full"
+          )}
+          style={{ height: "75vh" }}
+        >
+          <div className="h-full rounded-t-2xl border-t border-border/50 bg-card shadow-2xl overflow-hidden">
+            {/* Drag handle */}
+            <div className="flex justify-center py-2">
+              <div className="h-1 w-10 rounded-full bg-border/60" />
+            </div>
+            <div className="h-[calc(100%-1.5rem)] overflow-hidden">
+              <ChatInterface onSend={handleSend} />
+            </div>
+          </div>
         </div>
       </div>
     </div>

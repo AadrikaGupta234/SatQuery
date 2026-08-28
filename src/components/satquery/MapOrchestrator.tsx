@@ -169,14 +169,14 @@ export default function MapOrchestrator({ children }: MapOrchestratorProps) {
         {children}
       </DeckGL>
 
-      {/* Split view divider */}
+      {/* Split view divider — larger touch target on mobile */}
       {splitMode && imagery && (
         <div
           className="absolute bottom-0 top-0 z-10 w-0.5 bg-primary shadow-[0_0_8px_rgba(56,189,248,0.4)]"
           style={{ left: "50%" }}
         >
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <div className="flex size-7 items-center justify-center rounded-full border border-primary/60 bg-background text-[9px] font-bold text-primary">
+            <div className="flex size-8 items-center justify-center rounded-full border border-primary/60 bg-background text-[10px] font-bold text-primary sm:size-7 sm:text-[9px]">
               ⇄
             </div>
           </div>

@@ -111,13 +111,13 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden">
+    <div className="min-h-[100dvh] flex flex-col relative overflow-hidden">
       <Spotlight />
 
       {/* Auth Content */}
-      <div className="flex-1 flex items-center justify-center relative z-10">
-        <div className="flex items-center justify-center h-full flex-col">
-        <Card className="min-w-[350px] pb-0 border shadow-md">
+      <div className="flex-1 flex items-center justify-center relative z-10 px-4 py-8">
+        <div className="flex items-center justify-center h-full flex-col w-full max-w-sm">
+        <Card className="w-full sm:min-w-[350px] pb-0 border shadow-md">
           {step === "signIn" ? (
             <>
               <CardHeader className="text-center">
@@ -125,14 +125,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                     <img
                       src={logo}
                       alt="Lock Icon"
-                      width={64}
-                      height={64}
-                      className="rounded-lg mb-4 mt-4 cursor-pointer"
+                      width={56}
+                      height={56}
+                      className="rounded-lg mb-4 mt-2 sm:mt-4 cursor-pointer sm:w-16 sm:h-16"
                       onClick={() => navigate("/")}
                     />
                   </div>
-                <CardTitle className="text-xl">Get Started</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-lg sm:text-xl">Get Started</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
                   Enter your email to log in or sign up
                 </CardDescription>
               </CardHeader>
@@ -141,12 +141,12 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   
                   <div className="relative flex items-center gap-2">
                     <div className="relative flex-1">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
                         name="email"
                         placeholder="name@example.com"
                         type="email"
-                        className="pl-9"
+                        className="pl-9 h-10 sm:h-auto text-sm"
                         disabled={isLoading}
                         required
                       />
@@ -156,6 +156,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       variant="outline"
                       size="icon"
                       disabled={isLoading}
+                      className="size-10 shrink-0"
                     >
                       {isLoading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -197,8 +198,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
           ) : (
             <>
               <CardHeader className="text-center mt-4">
-                <CardTitle>Check your email</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-lg sm:text-xl">Check your email</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
                   We've sent a code to {step.email}
                 </CardDescription>
               </CardHeader>
@@ -215,7 +216,6 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       disabled={isLoading}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && otp.length === 6 && !isLoading) {
-                          // Find the closest form and submit it
                           const form = (e.target as HTMLElement).closest("form");
                           if (form) {
                             form.requestSubmit();
@@ -278,7 +278,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
             </>
           )}
 
-          <div className="py-4 px-6 text-xs text-center text-muted-foreground bg-muted border-t rounded-b-lg">
+          <div className="py-3 sm:py-4 px-4 sm:px-6 text-[10px] sm:text-xs text-center text-muted-foreground bg-muted border-t rounded-b-lg">
             Secured by{" "}
             <a
               href="https://freebuff.com"

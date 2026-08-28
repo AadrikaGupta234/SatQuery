@@ -3,6 +3,7 @@ import { useAnalysisStore } from "@/stores/analysis-store";
 import { useMapStore } from "@/stores/map-store";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import {
   Satellite,
   MapPin,
@@ -83,69 +84,135 @@ export default function ResultsPanel() {
   ];
 
   return (
-    <div className="absolute right-4 top-4 z-10 w-64 space-y-2">
-      <Card className="border-border/50 bg-card/90 p-3 backdrop-blur-md">
-        <div className="mb-2 flex items-center gap-1.5">
-          <BarChart3 className="size-3.5 text-primary" />
-          <span className="text-[11px] font-semibold">Analysis Results</span>
-          <Badge
-            variant={status === "success" ? "default" : "destructive"}
-            className="ml-auto text-[9px] px-1.5 py-0"
-          >
-            {confidence}%
-          </Badge>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <StatBlock
-            icon={<Target className="size-3" />}
-            label="Changes"
-            value={changeMaskCount}
-          />
-          <StatBlock
-            icon={<MapPin className="size-3" />}
-            label="Highlights"
-            value={highlightCount}
-          />
-          {totalArea > 0 && (
-            <StatBlock
-              icon={<Layers className="size-3" />}
-              label="Total Area"
-              value={`${totalArea.toLocaleString()} ha`}
-            />
-          )}
-          {imagery && (
-            <StatBlock
-              icon={<Clock className="size-3" />}
-              label="Period"
-              value={formatPeriod(imagery.dates[0], imagery.dates[1])}
-            />
-          )}
-        </div>
-        {explanation && (
-          <p className="mt-2 border-t border-border/30 pt-2 text-[10px] leading-relaxed text-muted-foreground">
-            {explanation}
-          </p>
+    <>
+      {/* Desktop: top-right floating panel */}
+      <div className="hidden md:block absolute right-4 top-4 z-10 w-64 space-y-2">
+        <ResultsCard
+          confidence={confidence}
+          status={status}
+          changeMaskCount={changeMaskCount}
+          highlightCount={highlightCount}
+          totalArea={totalArea}
+          imagery={imagery}
+          explanation={explanation}
+          activeFilters={activeFilters}
+        />
+        {layers.length > 0 && (
+          <LayerDisclosure layers={layers} onToggle={toggleLayer} />
         )}
-        {activeFilters.length > 0 && (
-          <div className="mt-2 border-t border-border/30 pt-2">
-            <p className="text-[9px] uppercase tracking-wider text-muted-foreground/60">
-              Active filters
-            </p>
-            {activeFilters.map((f, i) => (
-              <span
-                key={i}
-                className="mr-1 mt-1 inline-block rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary"
-              >
-                {f.field} {f.op} {f.value}
-              </span>
-            ))}
-          </div>
+      </div>
+
+      {/* Mobile: bottom-right compact bar */}
+      <div className="md:hidden absolute right-3 bottom-20 z-10 w-52 space-y-1.5">
+        <ResultsCard
+          confidence={confidence}
+          status={status}
+          changeMaskCount={changeMaskCount}
+          highlightCount={highlightCount}
+          totalArea={totalArea}
+          imagery={imagery}
+          explanation={explanation}
+          activeFilters={activeFilters}
+          compact
+        />
+        {layers.length > 0 && (
+          <LayerDisclosure
+            layers={layers}
+            onToggle={toggleLayer}
+            compact
+          />
         )}
-      </Card>
-      {layers.length > 0 && (
-        <LayerDisclosure layers={layers} onToggle={toggleLayer} />
+      </div>
+    </>
+  );
+}
+
+function ResultsCard({
+  confidence,
+  status,
+  changeMaskCount,
+  highlightCount,
+  totalArea,
+  imagery,
+  explanation,
+  activeFilters,
+  compact,
+}: {
+  confidence: number;
+  status: string;
+  changeMaskCount: number;
+  highlightCount: number;
+  totalArea: number;
+  imagery: any;
+  explanation: string;
+  activeFilters: any[];
+  compact?: boolean;
+}) {
+  return (
+    <Card className="border-border/50 bg-card/90 p-2.5 sm:p-3 backdrop-blur-md">
+      <div className="mb-2 flex items-center gap-1.5">
+        <BarChart3 className="size-3.5 text-primary" />
+        <span className="text-[10px] sm:text-[11px] font-semibold">
+          Analysis Results
+        </span>
+        <Badge
+          variant={status === "success" ? "default" : "destructive"}
+          className="ml-auto text-[8px] sm:text-[9px] px-1.5 py-0"
+        >
+          {confidence}%
+        </Badge>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+        <StatBlock
+          icon={<Target className="size-3" />}
+          label="Changes"
+          value={changeMaskCount}
+          compact={compact}
+        />
+        <StatBlock
+          icon={<MapPin className="size-3" />}
+          label="Highlights"
+          value={highlightCount}
+          compact={compact}
+        />
+        {totalArea > 0 && (
+          <StatBlock
+            icon={<Layers className="size-3" />}
+            label="Total Area"
+            value={`${totalArea.toLocaleString()} ha`}
+            compact={compact}
+          />
+        )}
+        {imagery && (
+          <StatBlock
+            icon={<Clock className="size-3" />}
+            label="Period"
+            value={formatPeriod(imagery.dates[0], imagery.dates[1])}
+            compact={compact}
+          />
+        )}
+      </div>
+      {explanation && !compact && (
+        <p className="mt-2 border-t border-border/30 pt-2 text-[10px] leading-relaxed text-muted-foreground">
+          {explanation}
+        </p>
       )}
-    </div>
+      {activeFilters.length > 0 && (
+        <div className="mt-2 border-t border-border/30 pt-2">
+          <p className="text-[8px] sm:text-[9px] uppercase tracking-wider text-muted-foreground/60">
+            Active filters
+          </p>
+          {activeFilters.map((f, i) => (
+            <span
+              key={i}
+              className="mr-1 mt-1 inline-block rounded bg-primary/10 px-1.5 py-0.5 text-[9px] sm:text-[10px] text-primary"
+            >
+              {f.field} {f.op} {f.value}
+            </span>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -153,18 +220,29 @@ function StatBlock({
   icon,
   label,
   value,
+  compact,
 }: {
   icon: React.ReactNode;
   label: string;
   value: React.ReactNode;
+  compact?: boolean;
 }) {
   return (
-    <div className="rounded-md bg-muted/40 px-2 py-1.5">
+    <div className={cn("rounded-md bg-muted/40 px-2", compact ? "py-1" : "py-1.5")}>
       <div className="flex items-center gap-1 text-muted-foreground">
         {icon}
-        <span className="text-[9px] uppercase tracking-wider">{label}</span>
+        <span className="text-[8px] sm:text-[9px] uppercase tracking-wider">
+          {label}
+        </span>
       </div>
-      <p className="mt-0.5 text-sm font-semibold tabular-nums">{value}</p>
+      <p
+        className={cn(
+          "mt-0.5 font-semibold tabular-nums",
+          compact ? "text-xs" : "text-sm"
+        )}
+      >
+        {value}
+      </p>
     </div>
   );
 }
@@ -172,6 +250,7 @@ function StatBlock({
 function LayerDisclosure({
   layers,
   onToggle,
+  compact,
 }: {
   layers: Array<{
     id: string;
@@ -180,13 +259,14 @@ function LayerDisclosure({
     checked: boolean;
   }>;
   onToggle: (id: string) => void;
+  compact?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(!compact);
   return (
     <Card className="border-border/50 bg-card/90 p-0 backdrop-blur-md">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-2 px-3 py-2 text-[11px] font-semibold"
+        className="flex w-full items-center gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-[11px] font-semibold"
       >
         <CheckCircle2 className="size-3 text-emerald-400" />
         {layers.length} layer{layers.length > 1 ? "s" : ""}
@@ -197,11 +277,11 @@ function LayerDisclosure({
         )}
       </button>
       {expanded && (
-        <div className="space-y-0.5 border-t border-border/30 px-3 py-2">
+        <div className="space-y-0.5 border-t border-border/30 px-2.5 sm:px-3 py-1.5 sm:py-2">
           {layers.map((layer) => (
             <label
               key={layer.id}
-              className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 text-[11px] transition-colors hover:bg-muted/40"
+              className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-0.5 sm:py-1 text-[10px] sm:text-[11px] transition-colors hover:bg-muted/40"
             >
               <input
                 type="checkbox"
