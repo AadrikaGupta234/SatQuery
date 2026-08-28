@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router";
 import TextHoverEffect from "@/components/satquery/TextHoverEffect";
 import TextGenerateEffect from "@/components/satquery/TextGenerateEffect";
+import Spotlight from "@/components/satquery/Spotlight";
 import {
   Satellite,
   Layers,
@@ -69,6 +70,7 @@ export default function Landing() {
 
       {/* Hero */}
       <section className="relative overflow-hidden">
+        <Spotlight />
         <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[600px] w-[900px] -translate-x-1/2 -translate-y-1/3 rounded-full bg-primary/[0.06] blur-[120px]" />
 
         <div className="mx-auto max-w-4xl px-6 pb-20 pt-24 text-center sm:pt-32">
