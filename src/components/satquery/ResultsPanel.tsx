@@ -14,29 +14,35 @@ import {
   Clock,
   Target,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export default function ResultsPanel() {
   const status = useAnalysisStore((s) => s.status);
-  const changeMask = useAnalysisStore((s) => s.changeMask);
-  const highlights = useAnalysisStore((s) => s.highlights);
+  const imagery = useAnalysisStore((s) => s.imagery);
+  const results = useAnalysisStore((s) => s.filteredResults);
   const confidence = useAnalysisStore((s) => s.confidence);
   const explanation = useAnalysisStore((s) => s.explanation);
-  const imagery = useAnalysisStore((s) => s.imagery);
+  const activeFilters = useAnalysisStore((s) => s.activeFilters);
   const toggleLayer = useMapStore((s) => s.toggleLayer);
   const activeLayers = useMapStore((s) => s.activeLayers);
 
-  // Don't render until we have results
+  const fc = results();
+
   if (status !== "success" && status !== "error") return null;
 
-  const changeCount = changeMask?.features?.length ?? 0;
-  const highlightCount = highlights?.features?.length ?? 0;
-
-  // Compute total area from change mask features
-  const totalArea = changeMask?.features?.reduce(
-    (sum, f) => sum + ((f.properties?.area_ha as number) ?? 0),
-    0
-  );
+  // Stats from unified FeatureCollection
+  const changeMaskCount =
+    fc?.features.filter((f) => (f.properties as any)?.type === "change_mask")
+      .length ?? 0;
+  const highlightCount =
+    fc?.features.filter((f) => (f.properties as any)?.type === "highlight")
+      .length ?? 0;
+  const totalArea =
+    fc?.features
+      .filter((f) => (f.properties as any)?.type === "change_mask")
+      .reduce(
+        (sum, f) => sum + (((f.properties as any)?.area_ha as number) ?? 0),
+        0
+      ) ?? 0;
 
   const layers = [
     ...(imagery
@@ -55,7 +61,7 @@ export default function ResultsPanel() {
           },
         ]
       : []),
-    ...(changeMask
+    ...(changeMaskCount > 0
       ? [
           {
             id: "change-mask",
@@ -65,7 +71,7 @@ export default function ResultsPanel() {
           },
         ]
       : []),
-    ...(highlights
+    ...(highlightCount > 0
       ? [
           {
             id: "highlight-region",
@@ -79,7 +85,6 @@ export default function ResultsPanel() {
 
   return (
     <div className="absolute right-4 top-4 z-10 w-64 space-y-2">
-      {/* Stats card */}
       <Card className="border-border/50 bg-card/90 p-3 backdrop-blur-md">
         <div className="mb-2 flex items-center gap-1.5">
           <BarChart3 className="size-3.5 text-primary" />
@@ -96,14 +101,14 @@ export default function ResultsPanel() {
           <StatBlock
             icon={<Target className="size-3" />}
             label="Changes"
-            value={changeCount}
+            value={changeMaskCount}
           />
           <StatBlock
             icon={<MapPin className="size-3" />}
             label="Highlights"
             value={highlightCount}
           />
-          {totalArea !== undefined && totalArea > 0 && (
+          {totalArea > 0 && (
             <StatBlock
               icon={<Layers className="size-3" />}
               label="Total Area"
@@ -124,10 +129,27 @@ export default function ResultsPanel() {
             {explanation}
           </p>
         )}
+
+        {activeFilters.length > 0 && (
+          <div className="mt-2 border-t border-border/30 pt-2">
+            <p className="text-[9px] uppercase tracking-wider text-muted-foreground/60">
+              Active filters
+            </p>
+            {activeFilters.map((f, i) => (
+              <span
+                key={i}
+                className="mr-1 mt-1 inline-block rounded bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary"
+              >
+                {f.field} {f.op} {f.value}
+              </span>
+            ))}
+          </div>
+        )}
       </Card>
 
-      {/* Layer toggles */}
-      {layers.length > 0 && <LayerDisclosure layers={layers} onToggle={toggleLayer} />}
+      {layers.length > 0 && (
+        <LayerDisclosure layers={layers} onToggle={toggleLayer} />
+      )}
     </div>
   );
 }

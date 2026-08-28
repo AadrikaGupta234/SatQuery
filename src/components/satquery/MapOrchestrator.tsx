@@ -9,28 +9,38 @@ interface MapOrchestratorProps {
   children?: ReactNode;
 }
 
-/**
- * Main map container.
- *
- * Renders DeckGL with analytics layers, and accepts children for
- * <MapLibreBasemap /> and <MapControls /> composition:
- *
- *   <MapOrchestrator>
- *     <DeckGL>
- *       <MapLibreBasemap />
- *     </DeckGL>
- *     <MapControls />
- *   </MapOrchestrator>
- */
 export default function MapOrchestrator({ children }: MapOrchestratorProps) {
   const viewport = useMapStore((s) => s.viewport);
-  const setViewport = useMapStore((s) => s.setViewport);
   const splitMode = useMapStore((s) => s.splitMode);
   const activeLayers = useMapStore((s) => s.activeLayers);
+  const setViewport = useMapStore((s) => s.setViewport);
 
   const imagery = useAnalysisStore((s) => s.imagery);
-  const changeMask = useAnalysisStore((s) => s.changeMask);
-  const highlights = useAnalysisStore((s) => s.highlights);
+  const filteredResults = useAnalysisStore((s) => s.filteredResults);
+  const status = useAnalysisStore((s) => s.status);
+
+  const results = filteredResults();
+
+  // Separate features by type for layer styling
+  const changeMaskFeatures = useMemo(() => {
+    if (!results) return null;
+    const features = results.features.filter(
+      (f) => (f.properties as any)?.type === "change_mask"
+    );
+    return features.length > 0
+      ? ({ ...results, features } as GeoJSON.FeatureCollection)
+      : null;
+  }, [results]);
+
+  const highlightFeatures = useMemo(() => {
+    if (!results) return null;
+    const features = results.features.filter(
+      (f) => (f.properties as any)?.type === "highlight"
+    );
+    return features.length > 0
+      ? ({ ...results, features } as GeoJSON.FeatureCollection)
+      : null;
+  }, [results]);
 
   const onViewStateChange = useCallback(
     ({ viewState }: any) => {
@@ -38,6 +48,8 @@ export default function MapOrchestrator({ children }: MapOrchestratorProps) {
         longitude: viewState.longitude,
         latitude: viewState.latitude,
         zoom: viewState.zoom,
+        pitch: viewState.pitch,
+        bearing: viewState.bearing,
       });
     },
     [setViewport]
@@ -47,35 +59,35 @@ export default function MapOrchestrator({ children }: MapOrchestratorProps) {
     console.log("[satQuery] Feature clicked:", info.object?.properties);
   }, []);
 
-  // DeckGL analytics layer stack
+  // DeckGL layer stack (bottom to top)
   const layers = useMemo(() => {
     const l: any[] = [];
 
-    // 1. Satellite Imagery — Before
+    // 1. Imagery — Before
     l.push(
       new TileLayer({
         id: "imagery-before",
-        data: imagery?.before ?? undefined,
+        data: imagery?.beforeUrl ?? undefined,
         visible: activeLayers.has("imagery-before"),
         opacity: splitMode ? 0.5 : 1,
       })
     );
 
-    // 2. Satellite Imagery — After (visible only in split mode)
+    // 2. Imagery — After (split mode only)
     l.push(
       new TileLayer({
         id: "imagery-after",
-        data: imagery?.after ?? undefined,
+        data: imagery?.afterUrl ?? undefined,
         visible: activeLayers.has("imagery-after") && splitMode,
       })
     );
 
-    // 3. Change Detection Mask
-    if (changeMask) {
+    // 3. Change Detection Mask — high contrast neon yellow
+    if (changeMaskFeatures) {
       l.push(
         new GeoJsonLayer({
           id: "change-mask",
-          data: changeMask,
+          data: changeMaskFeatures,
           visible: activeLayers.has("change-mask"),
           filled: true,
           stroked: true,
@@ -104,12 +116,12 @@ export default function MapOrchestrator({ children }: MapOrchestratorProps) {
       );
     }
 
-    // 4. Highlighted Regions
-    if (highlights) {
+    // 4. Highlights — responds to follow-up filters
+    if (highlightFeatures) {
       l.push(
         new GeoJsonLayer({
           id: "highlights",
-          data: highlights,
+          data: highlightFeatures,
           visible: activeLayers.has("highlight-region"),
           filled: true,
           getFillColor: [255, 50, 50, 120],
@@ -126,18 +138,23 @@ export default function MapOrchestrator({ children }: MapOrchestratorProps) {
     }
 
     return l;
-  }, [imagery, changeMask, highlights, splitMode, activeLayers, onFeatureClick]);
+  }, [
+    imagery,
+    changeMaskFeatures,
+    highlightFeatures,
+    splitMode,
+    activeLayers,
+    onFeatureClick,
+  ]);
 
   return (
     <div className="relative h-full w-full overflow-hidden">
-      {/* DeckGL wraps MapLibreBasemap as a child */}
       <DeckGL
         layers={layers}
         viewState={viewport}
         onViewStateChange={onViewStateChange}
         controller={true}
       >
-        {/* MapLibreBasemap renders here as DeckGL child */}
         {children}
       </DeckGL>
 

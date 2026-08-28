@@ -13,7 +13,6 @@ import {
   SplitSquareVertical,
   Layers,
   PanelLeftClose,
-  PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,38 +26,42 @@ export default function MapControls() {
   const activeLayers = useMapStore((s) => s.activeLayers);
 
   const imagery = useAnalysisStore((s) => s.imagery);
-  const changeMask = useAnalysisStore((s) => s.changeMask);
-  const highlights = useAnalysisStore((s) => s.highlights);
+  const results = useAnalysisStore((s) => s.results);
 
   const layerCount =
     activeLayers.size +
-    (imagery ? 1 : 0) +
-    (changeMask ? 1 : 0) +
-    (highlights ? 1 : 0);
+    (imagery ? 2 : 0) +
+    (results?.features?.length ?? 0);
 
   const handleZoomIn = () =>
     setViewport({ zoom: Math.min(viewport.zoom + 1, 18) });
   const handleZoomOut = () =>
     setViewport({ zoom: Math.max(viewport.zoom - 1, 1) });
   const handleReset = () =>
-    setViewport({ longitude: -60.0, latitude: -2.8, zoom: 6 });
+    setViewport({
+      longitude: -60.0,
+      latitude: -2.8,
+      zoom: 6,
+      pitch: 0,
+      bearing: 0,
+    });
 
   const handleExport = () => {
-    const state = useAnalysisStore.getState();
-    const mapState = useMapStore.getState();
+    const analysis = useAnalysisStore.getState();
+    const map = useMapStore.getState();
     const data = {
       format: "satquery-export-v1",
       timestamp: new Date().toISOString(),
-      viewport: mapState.viewport,
-      query: state.query,
-      confidence: state.confidence,
-      explanation: state.explanation,
-      activeLayers: [...mapState.activeLayers],
-      imagery: state.imagery
-        ? { dates: state.imagery.dates.map((d) => d.toISOString()) }
+      viewport: map.viewport,
+      query: analysis.query,
+      confidence: analysis.confidence,
+      explanation: analysis.explanation,
+      activeFilters: analysis.activeFilters,
+      activeLayers: [...map.activeLayers],
+      imagery: analysis.imagery
+        ? { dates: analysis.imagery.dates.map((d) => d.toISOString()) }
         : null,
-      changeMask: state.changeMask,
-      highlights: state.highlights,
+      results: analysis.results,
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: "application/json",

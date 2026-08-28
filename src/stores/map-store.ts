@@ -6,15 +6,17 @@ interface Viewport {
   longitude: number;
   latitude: number;
   zoom: number;
-  bearing?: number;
-  pitch?: number;
+  pitch: number;
+  bearing: number;
 }
 
 interface MapStore {
   // Viewport
   viewport: Viewport;
+  transitionDuration: number;
   setViewport: (partial: Partial<Viewport>) => void;
-  flyTo: (target: BBox, opts?: { padding?: number; duration?: number }) => void;
+  setTransitionDuration: (ms: number) => void;
+  flyTo: (target: BBox, opts?: { duration?: number; padding?: number }) => void;
 
   // Split view for before/after comparison
   splitMode: boolean;
@@ -22,7 +24,7 @@ interface MapStore {
   toggleSplitMode: () => void;
   setSplitPosition: (pos: number) => void;
 
-  // Layer visibility (managed here so the map reads from one source)
+  // Layer visibility
   activeLayers: Set<string>;
   toggleLayer: (layerId: string) => void;
   setLayerVisible: (layerId: string, visible: boolean) => void;
@@ -39,11 +41,10 @@ function bboxCenter(bbox: BBox): { longitude: number; latitude: number } {
   };
 }
 
-function bboxZoom(bbox: BBox, mapWidth: number, mapHeight: number): number {
+function bboxZoom(bbox: BBox): number {
   const lngDelta = Math.abs(bbox[2] - bbox[0]);
   const latDelta = Math.abs(bbox[3] - bbox[1]);
   const maxDelta = Math.max(lngDelta, latDelta);
-  // Rough fit: each zoom level halves the world span
   return Math.min(Math.max(Math.log2(360 / maxDelta) - 0.5, 2), 16);
 }
 
@@ -52,27 +53,37 @@ export const useMapStore = create<MapStore>((set, get) => ({
     longitude: -60.0,
     latitude: -2.8,
     zoom: 6,
+    pitch: 0,
+    bearing: 0,
   },
+  transitionDuration: 1200,
 
   setViewport: (partial) =>
     set((s) => ({ viewport: { ...s.viewport, ...partial } })),
 
+  setTransitionDuration: (ms) => set({ transitionDuration: ms }),
+
   flyTo: (target, opts) => {
     const center = bboxCenter(target);
-    const zoom = bboxZoom(target, 800, 600);
-    set({
+    const zoom = bboxZoom(target);
+    const duration = opts?.duration ?? get().transitionDuration;
+    // Set transition duration, then viewport — DeckGL interpolates
+    set((s) => ({
+      transitionDuration: duration,
       viewport: {
-        ...get().viewport,
-        ...center,
+        ...s.viewport,
+        longitude: center.longitude,
+        latitude: center.latitude,
         zoom,
       },
-    });
+    }));
   },
 
   splitMode: false,
   splitPosition: 50,
   toggleSplitMode: () => set((s) => ({ splitMode: !s.splitMode })),
-  setSplitPosition: (pos) => set({ splitPosition: Math.max(0, Math.min(100, pos)) }),
+  setSplitPosition: (pos) =>
+    set({ splitPosition: Math.max(0, Math.min(100, pos)) }),
 
   activeLayers: new Set<string>(["satellite-tiles"]),
   toggleLayer: (layerId) =>

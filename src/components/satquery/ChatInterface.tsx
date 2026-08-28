@@ -9,7 +9,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { PipelineStatus } from "@/stores/analysis-store";
 
 const SUGGESTIONS = [
   "Show deforestation in Amazon basin last 6 months",
@@ -18,14 +17,12 @@ const SUGGESTIONS = [
   "Identify flood damage along Mekong Delta",
 ];
 
-const STATUS_LABELS: Record<PipelineStatus, string> = {
-  idle: "",
-  understanding: "Understanding query…",
-  searching: "Searching imagery archives…",
-  processing: "Running change detection…",
-  success: "Analysis complete",
-  error: "Analysis failed",
-};
+// Follow-up suggestions shown after a successful analysis
+const FOLLOW_UPS = [
+  "Only show changes > 1 hectare",
+  "Show only high confidence (>90%)",
+  "Compare with 1 year ago",
+];
 
 interface ChatInterfaceProps {
   onSend: (query: string) => void;
@@ -37,15 +34,15 @@ export default function ChatInterface({ onSend }: ChatInterfaceProps) {
 
   const messages = useAnalysisStore((s) => s.messages);
   const status = useAnalysisStore((s) => s.status);
+  const statusMessage = useAnalysisStore((s) => s.statusMessage);
 
-  const processing =
-    status !== "idle" && status !== "success" && status !== "error";
+  const processing = status === "processing";
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, statusMessage]);
 
   const handleSubmit = () => {
     if (!input.trim() || processing) return;
@@ -63,6 +60,9 @@ export default function ChatInterface({ onSend }: ChatInterfaceProps) {
   const handleSuggestion = (s: string) => {
     if (!processing) onSend(s);
   };
+
+  // Show follow-ups after success
+  const showFollowUps = status === "success" && messages.length > 0;
 
   return (
     <div className="flex h-full flex-col bg-card/40 backdrop-blur-sm">
@@ -82,6 +82,7 @@ export default function ChatInterface({ onSend }: ChatInterfaceProps) {
       {/* Messages */}
       <ScrollArea className="flex-1 px-4">
         <div ref={scrollRef} className="space-y-4 py-4">
+          {/* Empty state with suggestions */}
           {messages.length === 0 && (
             <div className="flex flex-col items-center py-8 text-center">
               <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-muted/50">
@@ -107,6 +108,7 @@ export default function ChatInterface({ onSend }: ChatInterfaceProps) {
             </div>
           )}
 
+          {/* Chat messages */}
           {messages.map((msg) => (
             <div key={msg.id} className="space-y-2">
               <div
@@ -120,15 +122,12 @@ export default function ChatInterface({ onSend }: ChatInterfaceProps) {
                 {msg.content}
               </div>
 
-              {msg.role === "assistant" &&
-                msg.status &&
-                msg.status !== "success" &&
-                msg.status !== "error" && (
-                  <div className="ml-2 flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="size-3 animate-spin" />
-                    <span>{STATUS_LABELS[msg.status]}</span>
-                  </div>
-                )}
+              {msg.role === "assistant" && msg.status === "processing" && (
+                <div className="ml-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="size-3 animate-spin" />
+                  <span>{statusMessage || "Processing…"}</span>
+                </div>
+              )}
 
               {msg.role === "assistant" && msg.status === "error" && (
                 <div className="ml-2 flex items-center gap-2 text-xs text-destructive">
@@ -140,6 +139,24 @@ export default function ChatInterface({ onSend }: ChatInterfaceProps) {
               )}
             </div>
           ))}
+
+          {/* "Converse" step: contextual follow-ups */}
+          {showFollowUps && (
+            <div className="flex flex-col gap-1.5 pl-4">
+              <p className="text-[10px] text-muted-foreground/50">
+                Follow-up queries:
+              </p>
+              {FOLLOW_UPS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => handleSuggestion(s)}
+                  className="rounded-md border border-border/40 bg-muted/30 px-3 py-1.5 text-left text-[11px] text-muted-foreground transition-colors hover:border-primary/30 hover:bg-muted/50 hover:text-foreground"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </ScrollArea>
 
@@ -150,7 +167,11 @@ export default function ChatInterface({ onSend }: ChatInterfaceProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Describe what to analyze…"
+            placeholder={
+              status === "success"
+                ? "Ask a follow-up…"
+                : "Describe what to analyze…"
+            }
             rows={1}
             disabled={processing}
             className="flex-1 resize-none rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
@@ -170,7 +191,7 @@ export default function ChatInterface({ onSend }: ChatInterfaceProps) {
         </div>
         <p className="mt-1.5 text-[10px] text-muted-foreground/50">
           {processing
-            ? STATUS_LABELS[status]
+            ? statusMessage
             : "Enter to send · Shift+Enter for new line"}
         </p>
       </div>
