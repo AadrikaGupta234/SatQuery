@@ -4,40 +4,37 @@ import { useNavigate } from "react-router";
 import TextHoverEffect from "@/components/satquery/TextHoverEffect";
 import TextGenerateEffect from "@/components/satquery/TextGenerateEffect";
 import Spotlight from "@/components/satquery/Spotlight";
-import {
-  Satellite,
-  Layers,
-  ScanSearch,
-  MapPin,
-  ArrowRight,
-  Zap,
-  Globe,
-} from "lucide-react";
+import Carousel from "@/components/satquery/Carousel";
+import { Satellite, ArrowRight, Zap } from "lucide-react";
 
-const features = [
+const slideData = [
   {
-    icon: ScanSearch,
-    title: "AI-Powered Change Detection",
+    title: "Change Detection",
     description:
-      "Ask natural-language questions. Our model finds changes across satellite imagery archives automatically.",
+      "AI identifies deforestation, urban growth, and flood damage across satellite imagery archives.",
+    button: "Try it",
+    src: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=3272&auto=format&fit=crop",
   },
   {
-    icon: Layers,
-    title: "Before / After Comparison",
+    title: "Before / After",
     description:
-      "Swipe between dates with split-view. See exactly what changed, where, and by how much.",
+      "Compare any two dates side-by-side with interactive split-view and TiTiler-rendered COGs.",
+    button: "Compare",
+    src: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=3544&auto=format&fit=crop",
   },
   {
-    icon: MapPin,
-    title: "Interactive GeoJSON Results",
+    title: "Natural Language Queries",
     description:
-      "Click any detected region for details. Filter results client-side without re-fetching imagery.",
+      "Ask questions like \"Show urban expansion in Delhi 2021–2025\" and get mapped results instantly.",
+    button: "Ask now",
+    src: "https://images.unsplash.com/photo-1614728263952-84ea256f9679?q=80&w=3432&auto=format&fit=crop",
   },
   {
-    icon: Globe,
     title: "Multi-Region Analysis",
     description:
-      "From Amazon deforestation to urban sprawl in Delhi — analyze any region on Earth in seconds.",
+      "From Amazon deforestation to Mekong floods — analyze any region on Earth in seconds.",
+    button: "Explore",
+    src: "https://images.unsplash.com/photo-1507400492013-162706c8c05e?q=80&w=3542&auto=format&fit=crop",
   },
 ];
 
@@ -119,45 +116,24 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Features */}
-      <section className="relative z-10 border-t border-border/50">
-        <div className="mx-auto max-w-6xl px-6 py-20">
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="text-center"
-          >
-            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              Built for analysis
-            </h2>
-            <p className="mt-2 text-muted-foreground">
-              From query to change mask in seconds. Nothing you don't need.
-            </p>
-          </motion.div>
+      {/* Features — 3D Carousel */}
+      <section className="relative z-10 border-t border-border/50 py-20">
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-14"
+        >
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Built for analysis
+          </h2>
+          <p className="mt-2 text-muted-foreground">
+            From query to change mask in seconds. Nothing you don't need.
+          </p>
+        </motion.div>
 
-          <div className="mt-14 grid gap-4 sm:grid-cols-2">
-            {features.map((f, i) => (
-              <motion.div
-                key={f.title}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.1 }}
-                className="group rounded-xl border border-border/60 bg-card/50 p-6 backdrop-blur-sm transition-colors hover:border-primary/30 hover:bg-card"
-              >
-                <div className="mb-4 flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
-                  <f.icon className="size-4.5" />
-                </div>
-                <h3 className="text-sm font-semibold">{f.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                  {f.description}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
+        <Carousel slides={slideData} />
       </section>
 
       {/* Footer */}
