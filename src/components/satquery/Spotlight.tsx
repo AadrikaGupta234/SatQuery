@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 
-interface SpotlightProps {
+type SpotlightProps = {
   gradientFirst?: string;
   gradientSecond?: string;
   gradientThird?: string;
@@ -10,12 +10,12 @@ interface SpotlightProps {
   smallWidth?: number;
   duration?: number;
   xOffset?: number;
-}
+};
 
 export default function Spotlight({
-  gradientFirst = "radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(200, 100%, 85%, .08) 0, hsla(200, 100%, 55%, .02) 50%, hsla(200, 100%, 45%, 0) 80%)",
-  gradientSecond = "radial-gradient(50% 50% at 50% 50%, hsla(200, 100%, 85%, .06) 0, hsla(200, 100%, 55%, .02) 80%, transparent 100%)",
-  gradientThird = "radial-gradient(50% 50% at 50% 50%, hsla(200, 100%, 85%, .04) 0, hsla(200, 100%, 45%, .02) 80%, transparent 100%)",
+  gradientFirst = "radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(210, 100%, 85%, .08) 0, hsla(210, 100%, 55%, .02) 50%, hsla(210, 100%, 45%, 0) 80%)",
+  gradientSecond = "radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, .06) 0, hsla(210, 100%, 55%, .02) 80%, transparent 100%)",
+  gradientThird = "radial-gradient(50% 50% at 50% 50%, hsla(210, 100%, 85%, .04) 0, hsla(210, 100%, 45%, .02) 80%, transparent 100%)",
   translateY = -350,
   width = 560,
   height = 1380,
@@ -30,7 +30,6 @@ export default function Spotlight({
       transition={{ duration: 1.5 }}
       className="pointer-events-none absolute inset-0 h-full w-full"
     >
-      {/* Left beam */}
       <motion.div
         animate={{ x: [0, xOffset, 0] }}
         transition={{
@@ -70,7 +69,6 @@ export default function Spotlight({
         />
       </motion.div>
 
-      {/* Right beam */}
       <motion.div
         animate={{ x: [0, -xOffset, 0] }}
         transition={{
