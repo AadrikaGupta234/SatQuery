@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router";
+import TextHoverEffect from "@/components/satquery/TextHoverEffect";
 import {
   Satellite,
   Layers,
@@ -80,11 +81,9 @@ export default function Landing() {
               Satellite Imagery Analysis
             </div>
 
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Detect changes
-              <br />
-              <span className="text-primary">from space</span>
-            </h1>
+            <div className="h-28 w-full sm:h-32 lg:h-36">
+              <TextHoverEffect text="SATQUERY" duration={0.15} />
+            </div>
 
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
               Ask questions about satellite imagery in natural language. Get
