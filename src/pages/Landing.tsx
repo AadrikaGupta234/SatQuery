@@ -5,16 +5,8 @@ import TextHoverEffect from "@/components/satquery/TextHoverEffect";
 import TextGenerateEffect from "@/components/satquery/TextGenerateEffect";
 import Spotlight from "@/components/satquery/Spotlight";
 import Carousel from "@/components/satquery/Carousel";
-import {
-  Satellite,
-  ArrowRight,
-  Zap,
-  Layers,
-  MessageSquare,
-  Globe,
-  ScanSearch,
-  SplitSquareVertical,
-} from "lucide-react";
+import FeatureCarousel from "@/components/satquery/FeatureCarousel";
+import { Satellite, ArrowRight, Zap } from "lucide-react";
 
 const slideData = [
   {
@@ -126,7 +118,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── Features Grid ──────────────────────────────────────── */}
+      {/* ── Built for analysis — Sliding Feature Carousel ──── */}
       <section className="relative z-10 border-t border-border/50 py-12 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <motion.div
@@ -144,106 +136,30 @@ export default function Landing() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-5 lg:gap-6">
-            {/* Before / After Comparison */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: 0 }}
-              className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/50 p-5 sm:p-6 backdrop-blur-sm transition-all hover:border-primary/30 hover:bg-card/80 sm:col-span-2 lg:col-span-1"
-            >
-              <div className="mb-4 flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <SplitSquareVertical className="size-5" />
-              </div>
-              <h3 className="text-sm font-semibold sm:text-base">Before / After</h3>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                Compare any two dates side-by-side with an interactive swipe slider.
-                TiTiler-rendered COGs load instantly as you drag.
-              </p>
-              <div className="mt-4 flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground">
-                  <Layers className="size-2.5" /> Split view
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground">
-                  <ScanSearch className="size-2.5" /> COG tiles
-                </span>
-              </div>
-            </motion.div>
-
-            {/* Natural Language Queries */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: 0.1 }}
-              className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/50 p-5 sm:p-6 backdrop-blur-sm transition-all hover:border-primary/30 hover:bg-card/80"
-            >
-              <div className="mb-4 flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <MessageSquare className="size-5" />
-              </div>
-              <h3 className="text-sm font-semibold sm:text-base">Natural Language Queries</h3>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                Ask questions like &ldquo;Show urban expansion in Delhi 2021–2025&rdquo; and get mapped results instantly.
-                Follow-up filters refine results client-side.
-              </p>
-              <div className="mt-4 flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground">
-                  <MessageSquare className="size-2.5" /> NLP
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground">
-                  <Zap className="size-2.5" /> Instant
-                </span>
-              </div>
-            </motion.div>
-
-            {/* Multi-Region Analysis */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              className="group relative overflow-hidden rounded-xl border border-border/50 bg-card/50 p-5 sm:p-6 backdrop-blur-sm transition-all hover:border-primary/30 hover:bg-card/80"
-            >
-              <div className="mb-4 flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <Globe className="size-5" />
-              </div>
-              <h3 className="text-sm font-semibold sm:text-base">Multi-Region Analysis</h3>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                From Amazon deforestation to Mekong floods — analyze any region on Earth.
-                AI-powered change detection across satellite archives.
-              </p>
-              <div className="mt-4 flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground">
-                  <Globe className="size-2.5" /> Global
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground">
-                  <ScanSearch className="size-2.5" /> AI detection
-                </span>
-              </div>
-            </motion.div>
-          </div>
+          <FeatureCarousel />
         </div>
       </section>
 
-      {/* ── Carousel showcase ──────────────────────────────────── */}
+      {/* ── Change Detection showcase ───────────────────────── */}
       <section className="relative z-10 border-t border-border/50 py-12 sm:py-20">
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="mb-8 text-center sm:mb-14"
-        >
-          <h2 className="text-xl font-semibold tracking-tight sm:text-2xl lg:text-3xl">
-            Built for analysis
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-            From query to change mask in seconds. Nothing you don't need.
-          </p>
-        </motion.div>
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="mb-8 text-center sm:mb-10"
+          >
+            <h2 className="text-xl font-semibold tracking-tight sm:text-2xl lg:text-3xl">
+              Change Detection
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+              AI identifies deforestation, urban growth, and flood damage across satellite imagery archives.
+            </p>
+          </motion.div>
 
-        <Carousel slides={slideData} />
+          <Carousel slides={slideData} />
+        </div>
       </section>
 
       {/* ── Footer ──────────────────────────────────────────────── */}
