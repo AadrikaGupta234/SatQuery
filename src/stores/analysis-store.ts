@@ -2,22 +2,16 @@ import { create } from "zustand";
 import type { BBox } from "./map-store";
 
 // ── Pipeline status ──────────────────────────────────────────────
-// Simplified per spec: idle | processing | success | error
-// The "thinking" sub-states (understanding, searching, etc.) are
-// internal to the pipeline and exposed via statusMessage.
 export type PipelineStatus = "idle" | "processing" | "success" | "error";
 
 // ── Imagery endpoints ────────────────────────────────────────────
 export interface ImageryEndpoints {
-  beforeUrl: string; // TiTiler tile URL template: /tiles/{z}/{x}/{y}
+  beforeUrl: string;
   afterUrl: string;
   dates: [Date, Date];
 }
 
-// ── GeoJSON result features ──────────────────────────────────────
-// Each feature has a `type` property so the layer system styles it:
-//   "change_mask"  → neon yellow fill + orange stroke
-//   "highlight"    → red fill, responds to follow-up filters
+// ── Feature types ────────────────────────────────────────────────
 export type FeatureType = "change_mask" | "highlight";
 
 export interface ResultProperties {
@@ -30,46 +24,14 @@ export interface ResultProperties {
   [key: string]: unknown;
 }
 
-// ── Store ────────────────────────────────────────────────────────
-interface AnalysisStore {
-  // Pipeline
-  status: PipelineStatus;
-  statusMessage: string; // e.g. "Searching imagery archives…"
-  startPipeline: (query: string) => void;
-  setImagery: (imagery: ImageryEndpoints) => void;
-  setResults: (fc: GeoJSON.FeatureCollection) => void;
-  complete: (explanation: string) => void;
-  fail: (reason: string) => void;
-  reset: () => void;
-
-  // Imagery (set mid-pipeline by Reveal step)
-  imagery: ImageryEndpoints | null;
-
-  // GeoJSON results — single FeatureCollection, features typed by `type`
-  results: GeoJSON.FeatureCollection | null;
-
-  // Metadata
-  confidence: number; // 0-100
-  explanation: string;
-
-  // Query context
-  query: string;
-  targetBBox: BBox | null;
-
-  // Client-side filtering for follow-up queries ("Converse" step)
-  // activeFilters narrow `results` without re-fetching imagery
-  activeFilters: FeatureFilter[];
-  addFilter: (filter: FeatureFilter) => void;
-  clearFilters: () => void;
-
-  // Derived: filtered results view (consumed by DeckGL layers)
-  filteredResults: () => GeoJSON.FeatureCollection | null;
-
-  // Chat history
-  messages: ChatMessage[];
-  addMessage: (msg: ChatMessage) => void;
+// ── Client-side filters ──────────────────────────────────────────
+export interface FeatureFilter {
+  field: string;
+  op: "gt" | "lt" | "eq";
+  value: number;
 }
 
+// ── Chat message ─────────────────────────────────────────────────
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -78,10 +40,68 @@ export interface ChatMessage {
   status?: PipelineStatus;
 }
 
-export interface FeatureFilter {
-  field: string; // e.g. "area_ha"
-  op: "gt" | "lt" | "eq";
-  value: number;
+// ── Store interface ──────────────────────────────────────────────
+interface AnalysisStore {
+  // Pipeline
+  status: PipelineStatus;
+  statusMessage: string;
+
+  // Imagery
+  imagery: ImageryEndpoints | null;
+
+  // GeoJSON — unified FeatureCollection, typed features
+  results: GeoJSON.FeatureCollection | null;
+
+  // Metadata
+  confidence: number;
+  explanation: string;
+
+  // Query context
+  query: string;
+  targetBBox: BBox | null;
+
+  // Client-side filtering ("Converse" step)
+  activeFilters: FeatureFilter[];
+  filteredResults: () => GeoJSON.FeatureCollection | null;
+
+  // Chat
+  messages: ChatMessage[];
+
+  // ── Individual setters (called by pipeline) ──
+  setStatus: (status: PipelineStatus) => void;
+  setStatusMessage: (msg: string) => void;
+  setImagery: (imagery: ImageryEndpoints) => void;
+  setChangeMask: (fc: GeoJSON.FeatureCollection) => void;
+  setHighlights: (fc: GeoJSON.FeatureCollection) => void;
+  setConfidence: (n: number) => void;
+  setExplanation: (text: string) => void;
+  setTargetBBox: (bbox: BBox) => void;
+
+  // ── Convenience: start/complete/fail ──
+  startPipeline: (query: string) => void;
+  complete: (explanation: string) => void;
+  fail: (reason: string) => void;
+  reset: () => void;
+
+  // ── Filters ──
+  addFilter: (filter: FeatureFilter) => void;
+  clearFilters: () => void;
+
+  // ── Chat ──
+  addMessage: (msg: ChatMessage) => void;
+}
+
+// ── Helpers ──────────────────────────────────────────────────────
+
+/** Merge changeMask + highlights into a single `results` FeatureCollection */
+function mergeResults(
+  changeMask: GeoJSON.FeatureCollection | null,
+  highlights: GeoJSON.FeatureCollection | null
+): GeoJSON.FeatureCollection | null {
+  const features: GeoJSON.Feature[] = [];
+  if (changeMask) features.push(...changeMask.features);
+  if (highlights) features.push(...highlights.features);
+  return features.length > 0 ? { type: "FeatureCollection", features } : null;
 }
 
 function applyFilters(
@@ -95,136 +115,175 @@ function applyFilters(
       filters.every((filter) => {
         const v = (f.properties as any)?.[filter.field];
         if (v === undefined) return false;
-        switch (filter.op) {
-          case "gt":
-            return v > filter.value;
-          case "lt":
-            return v < filter.value;
-          case "eq":
-            return v === filter.value;
-        }
+        if (filter.op === "gt") return v > filter.value;
+        if (filter.op === "lt") return v < filter.value;
+        return v === filter.value;
       })
     ),
   };
 }
 
-export const useAnalysisStore = create<AnalysisStore>((set, get) => ({
-  status: "idle",
-  statusMessage: "",
-  imagery: null,
-  results: null,
-  confidence: 0,
-  explanation: "",
-  query: "",
-  targetBBox: null,
-  activeFilters: [],
-  messages: [],
+// ── Store ────────────────────────────────────────────────────────
 
-  // ── Pipeline actions ──────────────────────────────────────────
+interface AnalysisStoreState {
+  _changeMask: GeoJSON.FeatureCollection | null;
+  _highlights: GeoJSON.FeatureCollection | null;
+}
 
-  startPipeline: (query) => {
-    const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: query,
-      timestamp: Date.now(),
-    };
-    const procMsg: ChatMessage = {
-      id: `proc-${Date.now()}`,
-      role: "assistant",
-      content: "",
-      timestamp: Date.now(),
-      status: "processing",
-    };
+export const useAnalysisStore = create<AnalysisStore & AnalysisStoreState>(
+  (set, get) => ({
+    status: "idle",
+    statusMessage: "",
+    imagery: null,
+    results: null,
+    _changeMask: null,
+    _highlights: null,
+    confidence: 0,
+    explanation: "",
+    query: "",
+    targetBBox: null,
+    activeFilters: [],
+    messages: [],
 
-    set({
-      status: "processing",
-      statusMessage: "Understanding query…",
-      query,
-      imagery: null,
-      results: null,
-      confidence: 0,
-      explanation: "",
-      activeFilters: [],
-      messages: [...get().messages, userMsg, procMsg],
-    });
-  },
+    // ── Individual setters ──────────────────────────────────────
 
-  setImagery: (imagery) => {
-    set({ imagery, statusMessage: "Loading imagery…" });
-  },
+    setStatus: (status) => set({ status }),
+    setStatusMessage: (statusMessage) => set({ statusMessage }),
 
-  setResults: (fc) => {
-    set({ results: fc, statusMessage: "Running change detection…" });
-  },
+    setImagery: (imagery) => set({ imagery }),
 
-  complete: (explanation) => {
-    const msgs = get().messages;
-    const lastProc = [...msgs]
-      .reverse()
-      .find(
-        (m) => m.role === "assistant" && m.status !== "success" && m.status !== "error"
-      );
+    setChangeMask: (fc) => {
+      set((s) => {
+        const _changeMask = fc;
+        return {
+          _changeMask,
+          results: mergeResults(_changeMask, s._highlights),
+        };
+      });
+    },
 
-    set({
-      status: "success",
-      statusMessage: "",
-      explanation,
-      messages: msgs.map((m) =>
-        m.id === lastProc?.id
-          ? { ...m, content: explanation, status: "success" as const }
-          : m
-      ),
-    });
-  },
+    setHighlights: (fc) => {
+      set((s) => {
+        const _highlights = fc;
+        return {
+          _highlights,
+          results: mergeResults(s._changeMask, _highlights),
+        };
+      });
+    },
 
-  fail: (reason) => {
-    const msgs = get().messages;
-    const lastProc = [...msgs]
-      .reverse()
-      .find(
-        (m) => m.role === "assistant" && m.status !== "success" && m.status !== "error"
-      );
+    setConfidence: (confidence) => set({ confidence }),
+    setExplanation: (explanation) => set({ explanation }),
+    setTargetBBox: (targetBBox) => set({ targetBBox }),
 
-    set({
-      status: "error",
-      statusMessage: "",
-      explanation: reason,
-      messages: msgs.map((m) =>
-        m.id === lastProc?.id
-          ? { ...m, content: reason, status: "error" as const }
-          : m
-      ),
-    });
-  },
+    // ── Convenience ─────────────────────────────────────────────
 
-  reset: () =>
-    set({
-      status: "idle",
-      statusMessage: "",
-      imagery: null,
-      results: null,
-      confidence: 0,
-      explanation: "",
-      query: "",
-      targetBBox: null,
-      activeFilters: [],
-    }),
+    startPipeline: (query) => {
+      const userMsg: ChatMessage = {
+        id: `user-${Date.now()}`,
+        role: "user",
+        content: query,
+        timestamp: Date.now(),
+      };
+      const procMsg: ChatMessage = {
+        id: `proc-${Date.now()}`,
+        role: "assistant",
+        content: "",
+        timestamp: Date.now(),
+        status: "processing",
+      };
 
-  // ── Client-side filtering ("Converse" step) ───────────────────
+      set({
+        status: "processing",
+        statusMessage: "Understanding query…",
+        query,
+        imagery: null,
+        results: null,
+        _changeMask: null,
+        _highlights: null,
+        confidence: 0,
+        explanation: "",
+        targetBBox: null,
+        activeFilters: [],
+        messages: [...get().messages, userMsg, procMsg],
+      });
+    },
 
-  addFilter: (filter) =>
-    set((s) => ({ activeFilters: [...s.activeFilters, filter] })),
+    complete: (explanation) => {
+      const msgs = get().messages;
+      const lastProc = [...msgs]
+        .reverse()
+        .find(
+          (m) =>
+            m.role === "assistant" &&
+            m.status !== "success" &&
+            m.status !== "error"
+        );
 
-  clearFilters: () => set({ activeFilters: [] }),
+      set({
+        status: "success",
+        statusMessage: "",
+        explanation,
+        messages: msgs.map((m) =>
+          m.id === lastProc?.id
+            ? { ...m, content: explanation, status: "success" as const }
+            : m
+        ),
+      });
+    },
 
-  filteredResults: () => {
-    const { results, activeFilters } = get();
-    return applyFilters(results, activeFilters);
-  },
+    fail: (reason) => {
+      const msgs = get().messages;
+      const lastProc = [...msgs]
+        .reverse()
+        .find(
+          (m) =>
+            m.role === "assistant" &&
+            m.status !== "success" &&
+            m.status !== "error"
+        );
 
-  // ── Chat ──────────────────────────────────────────────────────
+      set({
+        status: "error",
+        statusMessage: "",
+        explanation: reason,
+        messages: msgs.map((m) =>
+          m.id === lastProc?.id
+            ? { ...m, content: reason, status: "error" as const }
+            : m
+        ),
+      });
+    },
 
-  addMessage: (msg) =>
-    set((s) => ({ messages: [...s.messages, msg] })),
-}));
+    reset: () =>
+      set({
+        status: "idle",
+        statusMessage: "",
+        imagery: null,
+        results: null,
+        _changeMask: null,
+        _highlights: null,
+        confidence: 0,
+        explanation: "",
+        query: "",
+        targetBBox: null,
+        activeFilters: [],
+      }),
+
+    // ── Filters ─────────────────────────────────────────────────
+
+    addFilter: (filter) =>
+      set((s) => ({ activeFilters: [...s.activeFilters, filter] })),
+    clearFilters: () => set({ activeFilters: [] }),
+
+    filteredResults: () => {
+      const { results, activeFilters } = get();
+      return applyFilters(results, activeFilters);
+    },
+
+    // ── Chat ────────────────────────────────────────────────────
+
+    addMessage: (msg) =>
+      set((s) => ({ messages: [...s.messages, msg] })),
+  })
+);
