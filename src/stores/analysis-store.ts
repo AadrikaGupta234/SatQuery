@@ -261,11 +261,13 @@ export const useAnalysisStore = create<AnalysisStore & InternalState>(
         results: null,
         _changeMask: null,
         _highlights: null,
+        _pipelineId: 0,
         confidence: 0,
         explanation: "",
         query: "",
         targetBBox: null,
         activeFilters: [],
+        messages: [],
       }),
 
     // ── Filters ─────────────────────────────────────────────────
