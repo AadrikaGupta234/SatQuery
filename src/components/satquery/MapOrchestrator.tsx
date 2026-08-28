@@ -1,122 +1,46 @@
-import { useCallback, useMemo, useRef, useState } from "react";
-import Map, { NavigationControl } from "react-map-gl/maplibre";
+import { useCallback, useMemo } from "react";
+import Map, { Source, Layer, NavigationControl } from "react-map-gl/maplibre";
 import DeckGL from "@deck.gl/react";
-import { GeoJsonLayer, ArcLayer } from "@deck.gl/layers";
-import { PolygonLayer } from "@deck.gl/layers";
+import { GeoJsonLayer } from "@deck.gl/layers";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { AnalysisResult } from "./ChatInterface";
+import { useAnalysisStore } from "@/stores/analysis-store";
+import { useMapStore } from "@/stores/map-store";
 
-// Placeholder demo GeoJSON for change masks
-const DEMO_CHANGE_MASK: GeoJSON.FeatureCollection = {
-  type: "FeatureCollection",
-  features: [
-    {
-      type: "Feature",
-      geometry: {
-        type: "Polygon",
-        coordinates: [
-          [
-            [-60.5, -3.2],
-            [-60.2, -3.2],
-            [-60.2, -2.9],
-            [-60.5, -2.9],
-            [-60.5, -3.2],
-          ],
-        ],
-      },
-      properties: {
-        changeType: "deforestation",
-        confidence: 0.92,
-        area_ha: 1240,
-      },
-    },
-    {
-      type: "Feature",
-      geometry: {
-        type: "Polygon",
-        coordinates: [
-          [
-            [-59.8, -2.5],
-            [-59.5, -2.5],
-            [-59.5, -2.2],
-            [-59.8, -2.2],
-            [-59.8, -2.5],
-          ],
-        ],
-      },
-      properties: {
-        changeType: "deforestation",
-        confidence: 0.87,
-        area_ha: 890,
-      },
-    },
-  ],
-};
-
-const DEMO_HIGHLIGHTS: GeoJSON.FeatureCollection = {
-  type: "FeatureCollection",
-  features: [
-    {
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: [-60.35, -3.05],
-      },
-      properties: { label: "Primary hot spot", severity: "high" },
-    },
-    {
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: [-59.65, -2.35],
-      },
-      properties: { label: "Secondary hot spot", severity: "medium" },
-    },
-  ],
-};
-
-interface MapOrchestratorProps {
-  activeLayers: Set<string>;
-  results: AnalysisResult[];
-  viewState: { longitude: number; latitude: number; zoom: number };
-  onViewStateChange: (vs: {
-    longitude: number;
-    latitude: number;
-    zoom: number;
-  }) => void;
-}
-
-const SATELLITE_STYLE =
+const BASEMAP_STYLE =
   "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
 
-export default function MapOrchestrator({
-  activeLayers,
-  results,
-  viewState,
-  onViewStateChange,
-}: MapOrchestratorProps) {
-  const deckRef = useRef<any>(null);
+export default function MapOrchestrator() {
+  const viewport = useMapStore((s) => s.viewport);
+  const setViewport = useMapStore((s) => s.setViewport);
+  const activeLayers = useMapStore((s) => s.activeLayers);
+  const splitMode = useMapStore((s) => s.splitMode);
+  const splitPosition = useMapStore((s) => s.splitPosition);
 
-  const layers = useMemo(() => {
+  const imagery = useAnalysisStore((s) => s.imagery);
+  const changeMask = useAnalysisStore((s) => s.changeMask);
+  const highlights = useAnalysisStore((s) => s.highlights);
+
+  const onViewStateChange = useCallback(
+    ({ viewState }: any) => {
+      setViewport({
+        longitude: viewState.longitude,
+        latitude: viewState.latitude,
+        zoom: viewState.zoom,
+      });
+    },
+    [setViewport]
+  );
+
+  // DeckGL overlay layers
+  const deckLayers = useMemo(() => {
     const l: any[] = [];
 
-    // Base satellite tile overlay (subtle)
-    if (activeLayers.has("satellite-tiles")) {
-      l.push(
-        new GeoJsonLayer({
-          id: "satellite-tiles-bg",
-          data: { type: "FeatureCollection", features: [] },
-          pickable: false,
-        })
-      );
-    }
-
     // Change mask polygons
-    if (activeLayers.has("change-mask")) {
+    if (activeLayers.has("change-mask") && changeMask) {
       l.push(
         new GeoJsonLayer({
           id: "change-mask-layer",
-          data: DEMO_CHANGE_MASK,
+          data: changeMask,
           filled: true,
           stroked: true,
           lineWidthMinPixels: 1,
@@ -128,18 +52,28 @@ export default function MapOrchestrator({
           highlightColor: [255, 80, 80, 180],
           getTooltip: ({ object }: any) =>
             object?.properties && {
-              text: `${object.properties.changeType}: ${object.properties.area_ha} ha (${Math.round(object.properties.confidence * 100)}% confidence)`,
+              text: [
+                object.properties.changeType,
+                object.properties.area_ha
+                  ? `${object.properties.area_ha} ha`
+                  : null,
+                object.properties.confidence
+                  ? `${Math.round(object.properties.confidence * 100)}% confidence`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" · "),
             },
         })
       );
     }
 
     // Highlight points / polygons
-    if (activeLayers.has("highlight-region")) {
+    if (activeLayers.has("highlight-region") && highlights) {
       l.push(
         new GeoJsonLayer({
           id: "highlight-layer",
-          data: DEMO_HIGHLIGHTS,
+          data: highlights,
           filled: true,
           stroked: true,
           getFillColor: [255, 200, 0, 160],
@@ -151,7 +85,7 @@ export default function MapOrchestrator({
           autoHighlight: true,
           highlightColor: [255, 200, 0, 200],
           getTooltip: ({ object }: any) =>
-            object?.properties && {
+            object?.properties?.label && {
               text: object.properties.label,
             },
         })
@@ -159,34 +93,77 @@ export default function MapOrchestrator({
     }
 
     return l;
-  }, [activeLayers]);
-
-  const onHover = useCallback(() => {}, []);
+  }, [activeLayers, changeMask, highlights]);
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg">
       <DeckGL
-        ref={deckRef}
-        layers={layers}
-        viewState={viewState}
-        onViewStateChange={({ viewState: vs }: any) =>
-          onViewStateChange({
-            longitude: vs.longitude,
-            latitude: vs.latitude,
-            zoom: vs.zoom,
-          })
-        }
+        layers={deckLayers}
+        viewState={viewport}
+        onViewStateChange={onViewStateChange}
         controller={true}
-        getTooltip={undefined}
       >
         <Map
-          mapStyle={SATELLITE_STYLE}
+          mapStyle={BASEMAP_STYLE}
           attributionControl={false}
           dragRotate={false}
         >
           <NavigationControl position="top-right" showCompass={false} />
+
+          {/* Before/After imagery via TiTiler tile sources */}
+          {imagery && activeLayers.has("imagery-before") && (
+            <Source
+              id="imagery-before"
+              type="raster"
+              tiles={[imagery.before]}
+              tileSize={256}
+              attribution="© satQuery"
+            >
+              <Layer
+                id="imagery-before-layer"
+                type="raster"
+                paint={{
+                  "raster-opacity": splitMode ? 1 : 0.85,
+                  "raster-opacity-transition": { duration: 300 },
+                }}
+              />
+            </Source>
+          )}
+
+          {imagery && activeLayers.has("imagery-after") && (
+            <Source
+              id="imagery-after"
+              type="raster"
+              tiles={[imagery.after]}
+              tileSize={256}
+              attribution="© satQuery"
+            >
+              <Layer
+                id="imagery-after-layer"
+                type="raster"
+                paint={{
+                  "raster-opacity": 0.85,
+                  "raster-opacity-transition": { duration: 300 },
+                }}
+              />
+            </Source>
+          )}
         </Map>
       </DeckGL>
+
+      {/* Split view divider */}
+      {splitMode && imagery && (
+        <div
+          className="absolute bottom-0 top-0 z-10 w-0.5 bg-primary shadow-[0_0_8px_rgba(56,189,248,0.4)]"
+          style={{ left: `${splitPosition}%` }}
+        >
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <div className="flex size-7 items-center justify-center rounded-full border border-primary/60 bg-background text-[9px] font-bold text-primary">
+              ⇄
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

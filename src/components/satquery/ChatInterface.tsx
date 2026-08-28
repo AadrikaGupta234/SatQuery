@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import { useAnalysisStore } from "@/stores/analysis-store";
+import { useMapStore } from "@/stores/map-store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -16,33 +18,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-export interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  timestamp: number;
-  status?: "processing" | "complete" | "error";
-  results?: AnalysisResult[];
-}
-
-export interface AnalysisResult {
-  type: "change_mask" | "highlight" | "tile" | "stats";
-  label: string;
-  description: string;
-  visible: boolean;
-  layerId: string;
-  confidence?: number;
-  geojson?: GeoJSON.FeatureCollection;
-}
-
-interface ChatInterfaceProps {
-  messages: ChatMessage[];
-  onSend: (query: string) => void;
-  processing: boolean;
-  onToggleLayer: (layerId: string) => void;
-  activeLayers: Set<string>;
-}
+import type { PipelineStatus } from "@/stores/analysis-store";
 
 const SUGGESTIONS = [
   "Show deforestation in Amazon basin last 6 months",
@@ -51,16 +27,29 @@ const SUGGESTIONS = [
   "Identify flood damage along Mekong Delta",
 ];
 
-export default function ChatInterface({
-  messages,
-  onSend,
-  processing,
-  onToggleLayer,
-  activeLayers,
-}: ChatInterfaceProps) {
+const STATUS_LABELS: Record<PipelineStatus, string> = {
+  idle: "",
+  understanding: "Understanding query…",
+  searching: "Searching imagery archives…",
+  processing: "Running change detection…",
+  success: "Analysis complete",
+  error: "Analysis failed",
+};
+
+export default function ChatInterface() {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const messages = useAnalysisStore((s) => s.messages);
+  const status = useAnalysisStore((s) => s.status);
+  const changeMask = useAnalysisStore((s) => s.changeMask);
+  const highlights = useAnalysisStore((s) => s.highlights);
+  const confidence = useAnalysisStore((s) => s.confidence);
+  const startAnalysis = useAnalysisStore((s) => s.startAnalysis);
+  const toggleLayer = useMapStore((s) => s.toggleLayer);
+  const activeLayers = useMapStore((s) => s.activeLayers);
+
+  const processing = status !== "idle" && status !== "success" && status !== "error";
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -70,7 +59,7 @@ export default function ChatInterface({
 
   const handleSubmit = () => {
     if (!input.trim() || processing) return;
-    onSend(input.trim());
+    startAnalysis(input.trim());
     setInput("");
   };
 
@@ -80,6 +69,30 @@ export default function ChatInterface({
       handleSubmit();
     }
   };
+
+  // Build result layers from store state
+  const resultLayers: Array<{
+    id: string;
+    label: string;
+    type: string;
+    checked: boolean;
+  }> = [];
+  if (changeMask) {
+    resultLayers.push({
+      id: "change-mask",
+      label: "Change detection mask",
+      type: "change_mask",
+      checked: activeLayers.has("change-mask"),
+    });
+  }
+  if (highlights) {
+    resultLayers.push({
+      id: "highlight-region",
+      label: "Highlighted regions",
+      type: "highlight",
+      checked: activeLayers.has("highlight-region"),
+    });
+  }
 
   return (
     <div className="flex h-full flex-col bg-card/40 backdrop-blur-sm">
@@ -114,7 +127,9 @@ export default function ChatInterface({
                 {SUGGESTIONS.map((s) => (
                   <button
                     key={s}
-                    onClick={() => onSend(s)}
+                    onClick={() => {
+                      if (!processing) startAnalysis(s);
+                    }}
                     className="rounded-md border border-border/40 bg-muted/30 px-3 py-1.5 text-left text-[11px] text-muted-foreground transition-colors hover:border-primary/30 hover:bg-muted/50 hover:text-foreground"
                   >
                     {s}
@@ -137,29 +152,30 @@ export default function ChatInterface({
                 {msg.content}
               </div>
 
-              {msg.role === "assistant" && msg.status === "processing" && (
+              {msg.role === "assistant" && msg.status && msg.status !== "success" && msg.status !== "error" && (
                 <div className="ml-2 flex items-center gap-2 text-xs text-muted-foreground">
                   <Loader2 className="size-3 animate-spin" />
-                  <span>Analyzing satellite data…</span>
+                  <span>{STATUS_LABELS[msg.status]}</span>
                 </div>
               )}
 
               {msg.role === "assistant" && msg.status === "error" && (
                 <div className="ml-2 flex items-center gap-2 text-xs text-destructive">
                   <AlertCircle className="size-3" />
-                  <span>Analysis failed. Try a different query.</span>
+                  <span>{msg.content || "Analysis failed. Try a different query."}</span>
                 </div>
-              )}
-
-              {msg.results && msg.results.length > 0 && (
-                <ResultsPanel
-                  results={msg.results}
-                  onToggleLayer={onToggleLayer}
-                  activeLayers={activeLayers}
-                />
               )}
             </div>
           ))}
+
+          {/* Progressive results — only shown after success */}
+          {resultLayers.length > 0 && status === "success" && (
+            <ResultsDisclosure
+              layers={resultLayers}
+              confidence={confidence}
+              onToggle={toggleLayer}
+            />
+          )}
         </div>
       </ScrollArea>
 
@@ -167,13 +183,13 @@ export default function ChatInterface({
       <div className="border-t border-border/50 p-3">
         <div className="flex gap-2">
           <textarea
-            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Describe what to analyze…"
             rows={1}
-            className="flex-1 resize-none rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30"
+            disabled={processing}
+            className="flex-1 resize-none rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/30 disabled:opacity-50"
           />
           <Button
             size="icon"
@@ -189,21 +205,23 @@ export default function ChatInterface({
           </Button>
         </div>
         <p className="mt-1.5 text-[10px] text-muted-foreground/50">
-          Enter to send · Shift+Enter for new line
+          {processing
+            ? STATUS_LABELS[status]
+            : "Enter to send · Shift+Enter for new line"}
         </p>
       </div>
     </div>
   );
 }
 
-function ResultsPanel({
-  results,
-  onToggleLayer,
-  activeLayers,
+function ResultsDisclosure({
+  layers,
+  confidence,
+  onToggle,
 }: {
-  results: AnalysisResult[];
-  onToggleLayer: (layerId: string) => void;
-  activeLayers: Set<string>;
+  layers: Array<{ id: string; label: string; type: string; checked: boolean }>;
+  confidence: number;
+  onToggle: (layerId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
 
@@ -213,8 +231,6 @@ function ResultsPanel({
         return <Layers className="size-3" />;
       case "highlight":
         return <MapPin className="size-3" />;
-      case "stats":
-        return <BarChart3 className="size-3" />;
       default:
         return <Satellite className="size-3" />;
     }
@@ -227,34 +243,32 @@ function ResultsPanel({
         className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium"
       >
         <CheckCircle2 className="size-3 text-emerald-400" />
-        {results.length} result layer{results.length > 1 ? "s" : ""} found
+        {layers.length} result layer{layers.length > 1 ? "s" : ""} found
+        <Badge variant="secondary" className="ml-auto text-[9px] px-1.5 py-0">
+          {confidence}%
+        </Badge>
         {expanded ? (
-          <ChevronDown className="ml-auto size-3 text-muted-foreground" />
+          <ChevronDown className="size-3 text-muted-foreground" />
         ) : (
-          <ChevronRight className="ml-auto size-3 text-muted-foreground" />
+          <ChevronRight className="size-3 text-muted-foreground" />
         )}
       </button>
 
       {expanded && (
         <div className="space-y-1 border-t border-border/30 px-3 py-2">
-          {results.map((r) => (
+          {layers.map((r) => (
             <label
-              key={r.layerId}
+              key={r.id}
               className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[11px] transition-colors hover:bg-muted/50"
             >
               <input
                 type="checkbox"
-                checked={activeLayers.has(r.layerId)}
-                onChange={() => onToggleLayer(r.layerId)}
+                checked={r.checked}
+                onChange={() => onToggle(r.id)}
                 className="size-3 rounded border-border accent-primary"
               />
               <span className="text-muted-foreground">{iconFor(r.type)}</span>
               <span className="flex-1 text-foreground/80">{r.label}</span>
-              {r.confidence !== undefined && (
-                <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
-                  {Math.round(r.confidence * 100)}%
-                </Badge>
-              )}
             </label>
           ))}
         </div>

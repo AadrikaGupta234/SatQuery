@@ -1,204 +1,229 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback } from "react";
 import { useNavigate } from "react-router";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/hooks/use-auth";
+import { useMapStore } from "@/stores/map-store";
+import { useAnalysisStore, type ImageryEndpoints } from "@/stores/analysis-store";
 import { Button } from "@/components/ui/button";
-import ChatInterface, {
-  type ChatMessage,
-  type AnalysisResult,
-} from "@/components/satquery/ChatInterface";
+import ChatInterface from "@/components/satquery/ChatInterface";
 import MapOrchestrator from "@/components/satquery/MapOrchestrator";
 import MapControls from "@/components/satquery/MapControls";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { LogOut, Maximize2, Minimize2 } from "lucide-react";
+import { LogOut } from "lucide-react";
 
-// Simulated analysis results for demo queries
-function simulateResults(query: string): AnalysisResult[] {
+// Simulated analysis pipeline — in production this calls a Convex action
+function simulateAnalysis(
+  query: string,
+  resolve: (result: {
+    imagery: ImageryEndpoints;
+    changeMask: GeoJSON.FeatureCollection | null;
+    highlights: GeoJSON.FeatureCollection | null;
+    confidence: number;
+    explanation: string;
+  }) => void,
+  reject: (reason: string) => void
+) {
+  const store = useAnalysisStore.getState();
   const lower = query.toLowerCase();
-  if (lower.includes("deforest") || lower.includes("amazon")) {
-    return [
-      {
-        type: "change_mask",
-        label: "Deforestation mask (2024 Q1–Q2)",
-        description: "Detected clearing events",
-        visible: true,
-        layerId: "change-mask",
-        confidence: 0.92,
-      },
-      {
-        type: "highlight",
-        label: "Primary hot spot",
-        description: "Largest detected change",
-        visible: true,
-        layerId: "highlight-region",
-        confidence: 0.97,
-      },
-    ];
-  }
-  if (lower.includes("urban") || lower.includes("sprawl") || lower.includes("nairobi")) {
-    return [
-      {
-        type: "change_mask",
-        label: "Urban expansion mask",
-        description: "New built-up areas detected",
-        visible: true,
-        layerId: "change-mask",
-        confidence: 0.88,
-      },
-      {
-        type: "highlight",
-        label: "Growth corridor",
-        description: "Primary expansion direction",
-        visible: true,
-        layerId: "highlight-region",
-        confidence: 0.91,
-      },
-    ];
-  }
-  if (lower.includes("flood") || lower.includes("mekong")) {
-    return [
-      {
-        type: "change_mask",
-        label: "Flood extent mask",
-        description: "Inundated area detected",
-        visible: true,
-        layerId: "change-mask",
-        confidence: 0.95,
-      },
-    ];
-  }
-  // Default / generic
-  return [
-    {
-      type: "change_mask",
-      label: "General change detection",
-      description: "Significant surface changes",
-      visible: true,
-      layerId: "change-mask",
-      confidence: 0.84,
-    },
-    {
-      type: "highlight",
-      label: "Area of interest",
-      description: "Highlighted region",
-      visible: true,
-      layerId: "highlight-region",
-      confidence: 0.89,
-    },
-  ];
-}
 
-const DEFAULT_VIEW = {
-  longitude: -60.0,
-  latitude: -2.8,
-  zoom: 6,
-};
+  // Step 1: understanding → searching
+  store.setStatus("understanding");
+  setTimeout(() => {
+    store.setStatus("searching");
+  }, 600);
+
+  // Step 2: searching → processing
+  setTimeout(() => {
+    store.setStatus("processing");
+  }, 1200);
+
+  // Step 3: produce results
+  setTimeout(() => {
+    const now = new Date();
+    const before = new Date(now);
+    before.setMonth(before.getMonth() - 6);
+
+    let changeMask: GeoJSON.FeatureCollection | null = null;
+    let highlights: GeoJSON.FeatureCollection | null = null;
+    let confidence = 84;
+    let explanation = "Analysis complete. Results displayed on map.";
+
+    if (lower.includes("deforest") || lower.includes("amazon")) {
+      changeMask = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [-60.5, -3.2],
+                  [-60.2, -3.2],
+                  [-60.2, -2.9],
+                  [-60.5, -2.9],
+                  [-60.5, -3.2],
+                ],
+              ],
+            },
+            properties: { changeType: "deforestation", area_ha: 1240, confidence: 0.92 },
+          },
+          {
+            type: "Feature",
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [-59.8, -2.5],
+                  [-59.5, -2.5],
+                  [-59.5, -2.2],
+                  [-59.8, -2.2],
+                  [-59.8, -2.5],
+                ],
+              ],
+            },
+            properties: { changeType: "deforestation", area_ha: 890, confidence: 0.87 },
+          },
+        ],
+      };
+      highlights = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [-60.35, -3.05] },
+            properties: { label: "Primary clearing event", severity: "high" },
+          },
+        ],
+      };
+      confidence = 92;
+      explanation =
+        "Detected 2,130 ha of deforestation across the Amazon basin in the last 6 months. Primary clearing event at −60.35°, −3.05° with 92% confidence. Results displayed on map.";
+    } else if (lower.includes("urban") || lower.includes("nairobi")) {
+      changeMask = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [36.7, -1.4],
+                  [37.0, -1.4],
+                  [37.0, -1.1],
+                  [36.7, -1.1],
+                  [36.7, -1.4],
+                ],
+              ],
+            },
+            properties: { changeType: "urban_expansion", area_ha: 3200, confidence: 0.88 },
+          },
+        ],
+      };
+      confidence = 88;
+      explanation =
+        "Detected 3,200 ha of urban expansion around Nairobi since 2023. Growth corridor identified heading northeast. Results displayed on map.";
+    } else if (lower.includes("flood") || lower.includes("mekong")) {
+      changeMask = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [106.0, 10.0],
+                  [106.5, 10.0],
+                  [106.5, 9.5],
+                  [106.0, 9.5],
+                  [106.0, 10.0],
+                ],
+              ],
+            },
+            properties: { changeType: "flooding", area_ha: 8500, confidence: 0.95 },
+          },
+        ],
+      };
+      confidence = 95;
+      explanation =
+        "Detected 8,500 ha of inundation along the Mekong Delta. Flood extent mapped with 95% confidence. Results displayed on map.";
+    } else {
+      changeMask = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                [
+                  [-60.5, -3.5],
+                  [-59.5, -3.5],
+                  [-59.5, -2.5],
+                  [-60.5, -2.5],
+                  [-60.5, -3.5],
+                ],
+              ],
+            },
+            properties: { changeType: "surface_change", area_ha: 4100, confidence: 0.84 },
+          },
+        ],
+      };
+      highlights = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: { type: "Point", coordinates: [-60.0, -3.0] },
+            properties: { label: "Area of interest", severity: "medium" },
+          },
+        ],
+      };
+      explanation =
+        "General change detection complete. 4,100 ha of surface change detected. Results displayed on map.";
+    }
+
+    resolve({
+      imagery: {
+        before: `https://tiles.example.com/before/{z}/{x}/{y}.png`,
+        after: `https://tiles.example.com/after/{z}/{x}/{y}.png`,
+        dates: [before, now],
+      },
+      changeMask,
+      highlights,
+      confidence,
+      explanation,
+    });
+  }, 2200);
+}
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [processing, setProcessing] = useState(false);
-  const [activeLayers, setActiveLayers] = useState<Set<string>>(
-    new Set(["satellite-tiles"])
-  );
-  const [viewState, setViewState] = useState(DEFAULT_VIEW);
-  const [splitMode, setSplitMode] = useState(false);
-  const [leftExpanded, setLeftExpanded] = useState(true);
+  const panelOpen = useMapStore((s) => s.panelOpen);
+  const status = useAnalysisStore((s) => s.status);
+  const messages = useAnalysisStore((s) => s.messages);
+  const completeAnalysis = useAnalysisStore((s) => s.completeAnalysis);
+  const failAnalysis = useAnalysisStore((s) => s.failAnalysis);
 
-  // Simulated streaming query handler
   const handleSend = useCallback(
     (query: string) => {
-      const userMsg: ChatMessage = {
-        id: `user-${Date.now()}`,
-        role: "user",
-        content: query,
-        timestamp: Date.now(),
-      };
+      const analysis = useAnalysisStore.getState();
+      analysis.startAnalysis(query);
 
-      const processingMsg: ChatMessage = {
-        id: `proc-${Date.now()}`,
-        role: "assistant",
-        content: "",
-        timestamp: Date.now(),
-        status: "processing",
-      };
-
-      setMessages((prev) => [...prev, userMsg, processingMsg]);
-      setProcessing(true);
-
-      // Simulate analysis delay
-      setTimeout(() => {
-        const results = simulateResults(query);
-        const responseText = `Found ${results.length} analysis layer${results.length > 1 ? "s" : ""} for your query. Toggle visibility in the results panel or on the map.`;
-
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === processingMsg.id
-              ? {
-                  ...m,
-                  content: responseText,
-                  status: "complete" as const,
-                  results,
-                }
-              : m
-          )
-        );
-
-        // Auto-enable detected layers
-        setActiveLayers((prev) => {
-          const next = new Set(prev);
-          results.forEach((r) => next.add(r.layerId));
-          return next;
-        });
-
-        setProcessing(false);
-      }, 1800);
+      simulateAnalysis(
+        query,
+        (result) => {
+          useAnalysisStore.getState().completeAnalysis(result);
+        },
+        (reason) => {
+          useAnalysisStore.getState().failAnalysis(reason);
+        }
+      );
     },
     []
-  );
-
-  const handleToggleLayer = useCallback((layerId: string) => {
-    setActiveLayers((prev) => {
-      const next = new Set(prev);
-      if (next.has(layerId)) next.delete(layerId);
-      else next.add(layerId);
-      return next;
-    });
-  }, []);
-
-  const handleZoomIn = () =>
-    setViewState((v) => ({ ...v, zoom: Math.min(v.zoom + 1, 18) }));
-  const handleZoomOut = () =>
-    setViewState((v) => ({ ...v, zoom: Math.max(v.zoom - 1, 1) }));
-  const handleReset = () => setViewState(DEFAULT_VIEW);
-  const handleExport = () => {
-    // Placeholder — real export would serialize active GeoJSON layers
-    const data = JSON.stringify(
-      {
-        format: "satquery-export-v1",
-        timestamp: new Date().toISOString(),
-        viewState,
-        activeLayers: [...activeLayers],
-      },
-      null,
-      2
-    );
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "satquery-export.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  // Collect all results from messages for the map
-  const allResults = useMemo(
-    () => messages.flatMap((m) => m.results ?? []),
-    [messages]
   );
 
   const handleSignOut = async () => {
@@ -212,9 +237,7 @@ export default function Dashboard() {
         {/* Top bar */}
         <header className="z-20 flex h-11 shrink-0 items-center justify-between border-b border-border/50 bg-card/60 px-4 backdrop-blur-md">
           <div className="flex items-center gap-3">
-            <h1 className="text-xs font-semibold tracking-tight">
-              satQuery
-            </h1>
+            <h1 className="text-xs font-semibold tracking-tight">satQuery</h1>
             <span className="h-3 w-px bg-border/50" />
             <span className="text-[11px] text-muted-foreground">
               Satellite Imagery Analysis
@@ -242,70 +265,65 @@ export default function Dashboard() {
 
         {/* Main split layout */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Left panel — Chat + Results */}
+          {/* Left panel — ChatInterface reads directly from stores */}
           <div
             className="flex flex-col border-r border-border/50 transition-all duration-300"
-            style={{ width: leftExpanded ? 380 : 0, minWidth: leftExpanded ? 380 : 0 }}
+            style={{
+              width: panelOpen ? 380 : 0,
+              minWidth: panelOpen ? 380 : 0,
+            }}
           >
-            {leftExpanded && (
-              <ChatInterface
-                messages={messages}
-                onSend={handleSend}
-                processing={processing}
-                onToggleLayer={handleToggleLayer}
-                activeLayers={activeLayers}
-              />
-            )}
+            {panelOpen && <ChatInterface />}
           </div>
 
-          {/* Resize handle (click to toggle) */}
+          {/* Resize handle */}
           <button
-            onClick={() => setLeftExpanded(!leftExpanded)}
+            onClick={() => useMapStore.getState().togglePanel()}
             className="group flex w-1.5 shrink-0 items-center justify-center border-r border-border/30 bg-transparent transition-colors hover:bg-primary/10"
-            title={leftExpanded ? "Collapse panel" : "Expand panel"}
+            title={panelOpen ? "Collapse panel" : "Expand panel"}
           >
             <div className="h-8 w-0.5 rounded-full bg-border/60 transition-colors group-hover:bg-primary/60" />
           </button>
 
-          {/* Right panel — Map */}
+          {/* Right panel — Map reads from stores */}
           <div className="relative flex-1">
-            <MapOrchestrator
-              activeLayers={activeLayers}
-              results={allResults}
-              viewState={viewState}
-              onViewStateChange={setViewState}
-            />
-            <MapControls
-              onZoomIn={handleZoomIn}
-              onZoomOut={handleZoomOut}
-              onReset={handleReset}
-              onExport={handleExport}
-              onSplitToggle={() => setSplitMode(!splitMode)}
-              splitMode={splitMode}
-              activeLayerCount={activeLayers.size}
-            />
+            <MapOrchestrator />
+            <MapControls />
 
-            {/* Map legend overlay */}
-            {activeLayers.has("change-mask") && (
-              <div className="absolute bottom-4 right-4 z-10 rounded-md border border-border/50 bg-card/80 px-3 py-2 backdrop-blur-sm">
-                <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                  Legend
-                </p>
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2 text-[10px]">
-                    <span className="size-2.5 rounded-sm bg-red-400/70" />
-                    <span className="text-muted-foreground">Change mask</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[10px]">
-                    <span className="size-2.5 rounded-sm bg-amber-300" />
-                    <span className="text-muted-foreground">Highlight</span>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Legend overlay */}
+            <LegendOverlay />
           </div>
         </div>
       </div>
     </TooltipProvider>
+  );
+}
+
+function LegendOverlay() {
+  const changeMask = useAnalysisStore((s) => s.changeMask);
+  const highlights = useAnalysisStore((s) => s.highlights);
+
+  if (!changeMask && !highlights) return null;
+
+  return (
+    <div className="absolute bottom-4 right-4 z-10 rounded-md border border-border/50 bg-card/80 px-3 py-2 backdrop-blur-sm">
+      <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+        Legend
+      </p>
+      <div className="flex flex-col gap-1">
+        {changeMask && (
+          <div className="flex items-center gap-2 text-[10px]">
+            <span className="size-2.5 rounded-sm bg-red-400/70" />
+            <span className="text-muted-foreground">Change mask</span>
+          </div>
+        )}
+        {highlights && (
+          <div className="flex items-center gap-2 text-[10px]">
+            <span className="size-2.5 rounded-sm bg-amber-300" />
+            <span className="text-muted-foreground">Highlight</span>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
