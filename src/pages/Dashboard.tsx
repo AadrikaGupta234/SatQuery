@@ -19,6 +19,7 @@ function simulateAnalysis(
     highlights: GeoJSON.FeatureCollection | null;
     confidence: number;
     explanation: string;
+    targetBBox?: [number, number, number, number];
   }) => void,
   reject: (reason: string) => void
 ) {
@@ -194,6 +195,7 @@ function simulateAnalysis(
       highlights,
       confidence,
       explanation,
+      targetBBox: [-61, -4, -59, -2] as [number, number, number, number],
     });
   }, 2200);
 }
@@ -217,6 +219,16 @@ export default function Dashboard() {
         query,
         (result) => {
           useAnalysisStore.getState().completeAnalysis(result);
+          // Auto-enable imagery layers when analysis completes
+          const map = useMapStore.getState();
+          map.setLayerVisible("imagery-before", true);
+          map.setLayerVisible("imagery-after", true);
+          map.setLayerVisible("change-mask", true);
+          map.setLayerVisible("highlight-region", true);
+          // Fly to analysis region if available
+          if (result.targetBBox) {
+            map.flyTo(result.targetBBox);
+          }
         },
         (reason) => {
           useAnalysisStore.getState().failAnalysis(reason);

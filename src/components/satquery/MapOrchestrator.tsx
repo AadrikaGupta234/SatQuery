@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
-import Map, { Source, Layer, NavigationControl } from "react-map-gl/maplibre";
+import Map, { NavigationControl } from "react-map-gl/maplibre";
 import DeckGL from "@deck.gl/react";
+import { TileLayer } from "@deck.gl/geo-layers";
 import { GeoJsonLayer } from "@deck.gl/layers";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useAnalysisStore } from "@/stores/analysis-store";
@@ -12,9 +13,9 @@ const BASEMAP_STYLE =
 export default function MapOrchestrator() {
   const viewport = useMapStore((s) => s.viewport);
   const setViewport = useMapStore((s) => s.setViewport);
-  const activeLayers = useMapStore((s) => s.activeLayers);
   const splitMode = useMapStore((s) => s.splitMode);
-  const splitPosition = useMapStore((s) => s.splitPosition);
+  const activeLayers = useMapStore((s) => s.activeLayers);
+  const toggleLayer = useMapStore((s) => s.toggleLayer);
 
   const imagery = useAnalysisStore((s) => s.imagery);
   const changeMask = useAnalysisStore((s) => s.changeMask);
@@ -31,25 +32,52 @@ export default function MapOrchestrator() {
     [setViewport]
   );
 
-  // DeckGL overlay layers
-  const deckLayers = useMemo(() => {
+  const onFeatureClick = useCallback((info: any) => {
+    // Future: open detail panel for clicked change feature
+    console.log("[satQuery] Feature clicked:", info.object?.properties);
+  }, []);
+
+  // DeckGL layer stack — matches the exact spec
+  const layers = useMemo(() => {
     const l: any[] = [];
 
-    // Change mask polygons
-    if (activeLayers.has("change-mask") && changeMask) {
+    // 1. Satellite Imagery — Before
+    l.push(
+      new TileLayer({
+        id: "imagery-before",
+        data: imagery?.before ?? undefined,
+        visible: activeLayers.has("imagery-before"),
+        opacity: splitMode ? 0.5 : 1,
+      })
+    );
+
+    // 2. Satellite Imagery — After (visible only in split mode)
+    l.push(
+      new TileLayer({
+        id: "imagery-after",
+        data: imagery?.after ?? undefined,
+        visible: activeLayers.has("imagery-after") && splitMode,
+        // Shader clips to right side in split mode
+        // (rendered by the split divider positioned at splitPosition%)
+      })
+    );
+
+    // 3. Change Detection Mask
+    if (changeMask) {
       l.push(
         new GeoJsonLayer({
-          id: "change-mask-layer",
+          id: "change-mask",
           data: changeMask,
+          visible: activeLayers.has("change-mask"),
           filled: true,
           stroked: true,
+          getFillColor: [255, 200, 0, 80], // Neon yellow, semi-transparent
+          getLineColor: [255, 100, 0, 200],
           lineWidthMinPixels: 1,
-          getFillColor: [255, 80, 80, 100],
-          getLineColor: [255, 80, 80, 200],
-          getLineWidth: 2,
-          pickable: true,
+          pickable: true, // Enable hover/click
+          onFeatureClick,
           autoHighlight: true,
-          highlightColor: [255, 80, 80, 180],
+          highlightColor: [255, 200, 0, 160],
           getTooltip: ({ object }: any) =>
             object?.properties && {
               text: [
@@ -58,7 +86,7 @@ export default function MapOrchestrator() {
                   ? `${object.properties.area_ha} ha`
                   : null,
                 object.properties.confidence
-                  ? `${Math.round(object.properties.confidence * 100)}% confidence`
+                  ? `${Math.round(object.properties.confidence * 100)}%`
                   : null,
               ]
                 .filter(Boolean)
@@ -68,22 +96,19 @@ export default function MapOrchestrator() {
       );
     }
 
-    // Highlight points / polygons
-    if (activeLayers.has("highlight-region") && highlights) {
+    // 4. Highlighted Regions (filtered by follow-up queries)
+    if (highlights) {
       l.push(
         new GeoJsonLayer({
-          id: "highlight-layer",
+          id: "highlights",
           data: highlights,
+          visible: activeLayers.has("highlight-region"),
           filled: true,
-          stroked: true,
-          getFillColor: [255, 200, 0, 160],
-          getLineColor: [255, 200, 0, 240],
-          getLineWidth: 3,
-          pointRadiusMinPixels: 6,
-          pointRadiusMaxPixels: 12,
+          getFillColor: [255, 50, 50, 120], // Red highlights
+          lineWidthMinPixels: 2,
           pickable: true,
           autoHighlight: true,
-          highlightColor: [255, 200, 0, 200],
+          highlightColor: [255, 50, 50, 200],
           getTooltip: ({ object }: any) =>
             object?.properties?.label && {
               text: object.properties.label,
@@ -93,12 +118,12 @@ export default function MapOrchestrator() {
     }
 
     return l;
-  }, [activeLayers, changeMask, highlights]);
+  }, [imagery, changeMask, highlights, splitMode, activeLayers, onFeatureClick]);
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg">
       <DeckGL
-        layers={deckLayers}
+        layers={layers}
         viewState={viewport}
         onViewStateChange={onViewStateChange}
         controller={true}
@@ -109,45 +134,6 @@ export default function MapOrchestrator() {
           dragRotate={false}
         >
           <NavigationControl position="top-right" showCompass={false} />
-
-          {/* Before/After imagery via TiTiler tile sources */}
-          {imagery && activeLayers.has("imagery-before") && (
-            <Source
-              id="imagery-before"
-              type="raster"
-              tiles={[imagery.before]}
-              tileSize={256}
-              attribution="© satQuery"
-            >
-              <Layer
-                id="imagery-before-layer"
-                type="raster"
-                paint={{
-                  "raster-opacity": splitMode ? 1 : 0.85,
-                  "raster-opacity-transition": { duration: 300 },
-                }}
-              />
-            </Source>
-          )}
-
-          {imagery && activeLayers.has("imagery-after") && (
-            <Source
-              id="imagery-after"
-              type="raster"
-              tiles={[imagery.after]}
-              tileSize={256}
-              attribution="© satQuery"
-            >
-              <Layer
-                id="imagery-after-layer"
-                type="raster"
-                paint={{
-                  "raster-opacity": 0.85,
-                  "raster-opacity-transition": { duration: 300 },
-                }}
-              />
-            </Source>
-          )}
         </Map>
       </DeckGL>
 
@@ -155,7 +141,7 @@ export default function MapOrchestrator() {
       {splitMode && imagery && (
         <div
           className="absolute bottom-0 top-0 z-10 w-0.5 bg-primary shadow-[0_0_8px_rgba(56,189,248,0.4)]"
-          style={{ left: `${splitPosition}%` }}
+          style={{ left: "50%" }}
         >
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <div className="flex size-7 items-center justify-center rounded-full border border-primary/60 bg-background text-[9px] font-bold text-primary">
