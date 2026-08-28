@@ -1,21 +1,32 @@
-import { useCallback, useMemo } from "react";
-import Map, { NavigationControl } from "react-map-gl/maplibre";
+import { useCallback, useMemo, type ReactNode } from "react";
 import DeckGL from "@deck.gl/react";
 import { TileLayer } from "@deck.gl/geo-layers";
 import { GeoJsonLayer } from "@deck.gl/layers";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { useAnalysisStore } from "@/stores/analysis-store";
 import { useMapStore } from "@/stores/map-store";
 
-const BASEMAP_STYLE =
-  "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+interface MapOrchestratorProps {
+  children?: ReactNode;
+}
 
-export default function MapOrchestrator() {
+/**
+ * Main map container.
+ *
+ * Renders DeckGL with analytics layers, and accepts children for
+ * <MapLibreBasemap /> and <MapControls /> composition:
+ *
+ *   <MapOrchestrator>
+ *     <DeckGL>
+ *       <MapLibreBasemap />
+ *     </DeckGL>
+ *     <MapControls />
+ *   </MapOrchestrator>
+ */
+export default function MapOrchestrator({ children }: MapOrchestratorProps) {
   const viewport = useMapStore((s) => s.viewport);
   const setViewport = useMapStore((s) => s.setViewport);
   const splitMode = useMapStore((s) => s.splitMode);
   const activeLayers = useMapStore((s) => s.activeLayers);
-  const toggleLayer = useMapStore((s) => s.toggleLayer);
 
   const imagery = useAnalysisStore((s) => s.imagery);
   const changeMask = useAnalysisStore((s) => s.changeMask);
@@ -33,11 +44,10 @@ export default function MapOrchestrator() {
   );
 
   const onFeatureClick = useCallback((info: any) => {
-    // Future: open detail panel for clicked change feature
     console.log("[satQuery] Feature clicked:", info.object?.properties);
   }, []);
 
-  // DeckGL layer stack — matches the exact spec
+  // DeckGL analytics layer stack
   const layers = useMemo(() => {
     const l: any[] = [];
 
@@ -57,8 +67,6 @@ export default function MapOrchestrator() {
         id: "imagery-after",
         data: imagery?.after ?? undefined,
         visible: activeLayers.has("imagery-after") && splitMode,
-        // Shader clips to right side in split mode
-        // (rendered by the split divider positioned at splitPosition%)
       })
     );
 
@@ -71,10 +79,10 @@ export default function MapOrchestrator() {
           visible: activeLayers.has("change-mask"),
           filled: true,
           stroked: true,
-          getFillColor: [255, 200, 0, 80], // Neon yellow, semi-transparent
+          getFillColor: [255, 200, 0, 80],
           getLineColor: [255, 100, 0, 200],
           lineWidthMinPixels: 1,
-          pickable: true, // Enable hover/click
+          pickable: true,
           onFeatureClick,
           autoHighlight: true,
           highlightColor: [255, 200, 0, 160],
@@ -96,7 +104,7 @@ export default function MapOrchestrator() {
       );
     }
 
-    // 4. Highlighted Regions (filtered by follow-up queries)
+    // 4. Highlighted Regions
     if (highlights) {
       l.push(
         new GeoJsonLayer({
@@ -104,7 +112,7 @@ export default function MapOrchestrator() {
           data: highlights,
           visible: activeLayers.has("highlight-region"),
           filled: true,
-          getFillColor: [255, 50, 50, 120], // Red highlights
+          getFillColor: [255, 50, 50, 120],
           lineWidthMinPixels: 2,
           pickable: true,
           autoHighlight: true,
@@ -121,20 +129,16 @@ export default function MapOrchestrator() {
   }, [imagery, changeMask, highlights, splitMode, activeLayers, onFeatureClick]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg">
+    <div className="relative h-full w-full overflow-hidden">
+      {/* DeckGL wraps MapLibreBasemap as a child */}
       <DeckGL
         layers={layers}
         viewState={viewport}
         onViewStateChange={onViewStateChange}
         controller={true}
       >
-        <Map
-          mapStyle={BASEMAP_STYLE}
-          attributionControl={false}
-          dragRotate={false}
-        >
-          <NavigationControl position="top-right" showCompass={false} />
-        </Map>
+        {/* MapLibreBasemap renders here as DeckGL child */}
+        {children}
       </DeckGL>
 
       {/* Split view divider */}
