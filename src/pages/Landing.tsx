@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router";
 import TextHoverEffect from "@/components/satquery/TextHoverEffect";
+import TextGenerateEffect from "@/components/satquery/TextGenerateEffect";
 import {
   Satellite,
   Layers,
@@ -85,11 +86,13 @@ export default function Landing() {
               <TextHoverEffect text="SATQUERY" duration={0.15} />
             </div>
 
-            <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-              Ask questions about satellite imagery in natural language. Get
-              change masks, before/after comparisons, and confidence-scored
-              results — all on an interactive map.
-            </p>
+            <div className="mx-auto mt-5 max-w-xl">
+              <TextGenerateEffect
+                words="Ask questions about satellite imagery in natural language. Get change masks, before/after comparisons, and confidence-scored results — all on an interactive map."
+                className="text-base leading-relaxed text-muted-foreground sm:text-lg text-center"
+                duration={0.4}
+              />
+            </div>
 
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
               <Button
