@@ -3,38 +3,38 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router";
 import {
   Satellite,
-  Radio,
-  Clock,
+  Layers,
+  ScanSearch,
+  MapPin,
   ArrowRight,
-  Shield,
-  Globe,
   Zap,
+  Globe,
 } from "lucide-react";
 
 const features = [
   {
-    icon: Clock,
-    title: "Pass Predictions",
+    icon: ScanSearch,
+    title: "AI-Powered Change Detection",
     description:
-      "7-day look-ahead with per-ground-station pass times, elevation, and duration.",
+      "Ask natural-language questions. Our model finds changes across satellite imagery archives automatically.",
   },
   {
-    icon: Radio,
-    title: "Uplink/Downlink Windows",
+    icon: Layers,
+    title: "Before / After Comparison",
     description:
-      "Know exactly when each satellite is over the horizon and ready for contact.",
+      "Swipe between dates with split-view. See exactly what changed, where, and by how much.",
   },
   {
-    icon: Shield,
-    title: "Priority Filtering",
+    icon: MapPin,
+    title: "Interactive GeoJSON Results",
     description:
-      "Filter by satellite, ground station, pass quality — surface what matters first.",
+      "Click any detected region for details. Filter results client-side without re-fetching imagery.",
   },
   {
     icon: Globe,
-    title: "Multi-Station View",
+    title: "Multi-Region Analysis",
     description:
-      "See passes across your entire ground station network in one unified table.",
+      "From Amazon deforestation to urban sprawl in Delhi — analyze any region on Earth in seconds.",
   },
 ];
 
@@ -67,7 +67,6 @@ export default function Landing() {
 
       {/* Hero */}
       <section className="relative overflow-hidden">
-        {/* Gradient orb */}
         <div className="pointer-events-none absolute left-1/2 top-0 -z-10 h-[600px] w-[900px] -translate-x-1/2 -translate-y-1/3 rounded-full bg-primary/[0.06] blur-[120px]" />
 
         <div className="mx-auto max-w-4xl px-6 pb-20 pt-24 text-center sm:pt-32">
@@ -78,18 +77,19 @@ export default function Landing() {
           >
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-xs text-muted-foreground backdrop-blur-sm">
               <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse-dot" />
-              Mission Operations Console
+              Satellite Imagery Analysis
             </div>
 
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Satellite Pass
+              Detect changes
               <br />
-              <span className="text-primary">Viewer</span>
+              <span className="text-primary">from space</span>
             </h1>
 
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-              Predict, track, and plan satellite ground contacts. One clean table
-              for every pass across your constellation.
+              Ask questions about satellite imagery in natural language. Get
+              change masks, before/after comparisons, and confidence-scored
+              results — all on an interactive map.
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
@@ -98,7 +98,7 @@ export default function Landing() {
                 className="gap-2 px-6"
                 onClick={() => navigate("/auth")}
               >
-                Open Mission Console
+                Start analyzing
                 <ArrowRight className="size-4" />
               </Button>
               <Button
@@ -108,7 +108,7 @@ export default function Landing() {
                 onClick={() => navigate("/auth")}
               >
                 <Zap className="size-4" />
-                View Demo Passes
+                View demo
               </Button>
             </div>
           </motion.div>
@@ -126,10 +126,10 @@ export default function Landing() {
             className="text-center"
           >
             <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              Built for operators
+              Built for analysis
             </h2>
             <p className="mt-2 text-muted-foreground">
-              Everything you need to plan ground contacts. Nothing you don't.
+              From query to change mask in seconds. Nothing you don't need.
             </p>
           </motion.div>
 
@@ -159,7 +159,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="border-t border-border/50 py-8">
         <div className="mx-auto max-w-6xl px-6 text-center text-xs text-muted-foreground/60">
-          satQuery v1.0 — Satellite Pass Viewer for Mission Operators
+          satQuery v1.0 — Satellite Imagery Analysis
         </div>
       </footer>
     </div>

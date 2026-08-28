@@ -18,7 +18,6 @@ import { cn } from "@/lib/utils";
 
 export default function MapControls() {
   const viewport = useMapStore((s) => s.viewport);
-  const setViewport = useMapStore((s) => s.setViewport);
   const splitMode = useMapStore((s) => s.splitMode);
   const toggleSplitMode = useMapStore((s) => s.toggleSplitMode);
   const panelOpen = useMapStore((s) => s.panelOpen);
@@ -29,21 +28,27 @@ export default function MapControls() {
   const results = useAnalysisStore((s) => s.results);
 
   const layerCount =
-    activeLayers.size +
+    Object.values(activeLayers).filter(Boolean).length +
     (imagery ? 2 : 0) +
     (results?.features?.length ?? 0);
 
   const handleZoomIn = () =>
-    setViewport({ zoom: Math.min(viewport.zoom + 1, 18) });
+    useMapStore.setState({
+      viewport: { ...viewport, zoom: Math.min(viewport.zoom + 1, 18) },
+    });
   const handleZoomOut = () =>
-    setViewport({ zoom: Math.max(viewport.zoom - 1, 1) });
+    useMapStore.setState({
+      viewport: { ...viewport, zoom: Math.max(viewport.zoom - 1, 1) },
+    });
   const handleReset = () =>
-    setViewport({
-      longitude: -60.0,
-      latitude: -2.8,
-      zoom: 6,
-      pitch: 0,
-      bearing: 0,
+    useMapStore.setState({
+      viewport: {
+        longitude: -60.0,
+        latitude: -2.8,
+        zoom: 6,
+        pitch: 0,
+        bearing: 0,
+      },
     });
 
   const handleExport = () => {
@@ -57,7 +62,7 @@ export default function MapControls() {
       confidence: analysis.confidence,
       explanation: analysis.explanation,
       activeFilters: analysis.activeFilters,
-      activeLayers: [...map.activeLayers],
+      activeLayers: Object.entries(map.activeLayers).filter(([,v]) => v).map(([k]) => k),
       imagery: analysis.imagery
         ? { dates: analysis.imagery.dates.map((d) => d.toISOString()) }
         : null,

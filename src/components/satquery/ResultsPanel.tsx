@@ -18,26 +18,25 @@ import {
 export default function ResultsPanel() {
   const status = useAnalysisStore((s) => s.status);
   const imagery = useAnalysisStore((s) => s.imagery);
-  const results = useAnalysisStore((s) => s.filteredResults);
+  const results = useAnalysisStore((s) => s.results);
   const confidence = useAnalysisStore((s) => s.confidence);
   const explanation = useAnalysisStore((s) => s.explanation);
   const activeFilters = useAnalysisStore((s) => s.activeFilters);
   const toggleLayer = useMapStore((s) => s.toggleLayer);
   const activeLayers = useMapStore((s) => s.activeLayers);
 
-  const fc = results();
-
   if (status !== "success" && status !== "error") return null;
 
-  // Stats from unified FeatureCollection
   const changeMaskCount =
-    fc?.features.filter((f) => (f.properties as any)?.type === "change_mask")
-      .length ?? 0;
+    results?.features.filter(
+      (f) => (f.properties as any)?.type === "change_mask"
+    ).length ?? 0;
   const highlightCount =
-    fc?.features.filter((f) => (f.properties as any)?.type === "highlight")
-      .length ?? 0;
+    results?.features.filter(
+      (f) => (f.properties as any)?.type === "highlight"
+    ).length ?? 0;
   const totalArea =
-    fc?.features
+    results?.features
       .filter((f) => (f.properties as any)?.type === "change_mask")
       .reduce(
         (sum, f) => sum + (((f.properties as any)?.area_ha as number) ?? 0),
@@ -51,13 +50,13 @@ export default function ResultsPanel() {
             id: "imagery-before",
             label: "Before imagery",
             icon: <Satellite className="size-3" />,
-            checked: activeLayers.has("imagery-before"),
+            checked: !!activeLayers["imagery-before"],
           },
           {
             id: "imagery-after",
             label: "After imagery",
             icon: <Satellite className="size-3" />,
-            checked: activeLayers.has("imagery-after"),
+            checked: !!activeLayers["imagery-after"],
           },
         ]
       : []),
@@ -67,7 +66,7 @@ export default function ResultsPanel() {
             id: "change-mask",
             label: "Change mask",
             icon: <Layers className="size-3" />,
-            checked: activeLayers.has("change-mask"),
+            checked: !!activeLayers["change-mask"],
           },
         ]
       : []),
@@ -77,7 +76,7 @@ export default function ResultsPanel() {
             id: "highlight-region",
             label: "Highlights",
             icon: <MapPin className="size-3" />,
-            checked: activeLayers.has("highlight-region"),
+            checked: !!activeLayers["highlight-region"],
           },
         ]
       : []),
@@ -96,7 +95,6 @@ export default function ResultsPanel() {
             {confidence}%
           </Badge>
         </div>
-
         <div className="grid grid-cols-2 gap-2">
           <StatBlock
             icon={<Target className="size-3" />}
@@ -123,13 +121,11 @@ export default function ResultsPanel() {
             />
           )}
         </div>
-
         {explanation && (
           <p className="mt-2 border-t border-border/30 pt-2 text-[10px] leading-relaxed text-muted-foreground">
             {explanation}
           </p>
         )}
-
         {activeFilters.length > 0 && (
           <div className="mt-2 border-t border-border/30 pt-2">
             <p className="text-[9px] uppercase tracking-wider text-muted-foreground/60">
@@ -146,7 +142,6 @@ export default function ResultsPanel() {
           </div>
         )}
       </Card>
-
       {layers.length > 0 && (
         <LayerDisclosure layers={layers} onToggle={toggleLayer} />
       )}
@@ -187,7 +182,6 @@ function LayerDisclosure({
   onToggle: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(true);
-
   return (
     <Card className="border-border/50 bg-card/90 p-0 backdrop-blur-md">
       <button
@@ -202,7 +196,6 @@ function LayerDisclosure({
           <ChevronRight className="ml-auto size-3 text-muted-foreground" />
         )}
       </button>
-
       {expanded && (
         <div className="space-y-0.5 border-t border-border/30 px-3 py-2">
           {layers.map((layer) => (

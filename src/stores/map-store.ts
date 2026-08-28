@@ -13,19 +13,14 @@ interface Viewport {
 interface MapStore {
   // Viewport
   viewport: Viewport;
-  transitionDuration: number;
-  setViewport: (partial: Partial<Viewport>) => void;
-  setTransitionDuration: (ms: number) => void;
-  flyTo: (target: BBox, opts?: { duration?: number; padding?: number }) => void;
+  flyTo: (target: BBox, opts?: { duration?: number }) => void;
 
   // Split view for before/after comparison
   splitMode: boolean;
-  splitPosition: number; // 0-100%
   toggleSplitMode: () => void;
-  setSplitPosition: (pos: number) => void;
 
-  // Layer visibility
-  activeLayers: Set<string>;
+  // Layer visibility — Record<string, boolean> for serializability
+  activeLayers: Record<string, boolean>;
   toggleLayer: (layerId: string) => void;
   setLayerVisible: (layerId: string, visible: boolean) => void;
 
@@ -56,50 +51,35 @@ export const useMapStore = create<MapStore>((set, get) => ({
     pitch: 0,
     bearing: 0,
   },
-  transitionDuration: 1200,
-
-  setViewport: (partial) =>
-    set((s) => ({ viewport: { ...s.viewport, ...partial } })),
-
-  setTransitionDuration: (ms) => set({ transitionDuration: ms }),
 
   flyTo: (target, opts) => {
     const center = bboxCenter(target);
     const zoom = bboxZoom(target);
-    const duration = opts?.duration ?? get().transitionDuration;
-    // Set transition duration, then viewport — DeckGL interpolates
-    set((s) => ({
-      transitionDuration: duration,
+    set({
       viewport: {
-        ...s.viewport,
+        ...get().viewport,
         longitude: center.longitude,
         latitude: center.latitude,
         zoom,
       },
-    }));
+    });
   },
 
   splitMode: false,
-  splitPosition: 50,
   toggleSplitMode: () => set((s) => ({ splitMode: !s.splitMode })),
-  setSplitPosition: (pos) =>
-    set({ splitPosition: Math.max(0, Math.min(100, pos)) }),
 
-  activeLayers: new Set<string>(["satellite-tiles"]),
+  activeLayers: {},
   toggleLayer: (layerId) =>
-    set((s) => {
-      const next = new Set(s.activeLayers);
-      if (next.has(layerId)) next.delete(layerId);
-      else next.add(layerId);
-      return { activeLayers: next };
-    }),
+    set((s) => ({
+      activeLayers: {
+        ...s.activeLayers,
+        [layerId]: !s.activeLayers[layerId],
+      },
+    })),
   setLayerVisible: (layerId, visible) =>
-    set((s) => {
-      const next = new Set(s.activeLayers);
-      if (visible) next.add(layerId);
-      else next.delete(layerId);
-      return { activeLayers: next };
-    }),
+    set((s) => ({
+      activeLayers: { ...s.activeLayers, [layerId]: visible },
+    })),
 
   panelOpen: true,
   togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),

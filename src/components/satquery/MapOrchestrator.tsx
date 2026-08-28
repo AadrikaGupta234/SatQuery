@@ -13,47 +13,58 @@ export default function MapOrchestrator({ children }: MapOrchestratorProps) {
   const viewport = useMapStore((s) => s.viewport);
   const splitMode = useMapStore((s) => s.splitMode);
   const activeLayers = useMapStore((s) => s.activeLayers);
-  const setViewport = useMapStore((s) => s.setViewport);
 
   const imagery = useAnalysisStore((s) => s.imagery);
-  const filteredResults = useAnalysisStore((s) => s.filteredResults);
-  const status = useAnalysisStore((s) => s.status);
+  const results = useAnalysisStore((s) => s.results);
+  const activeFilters = useAnalysisStore((s) => s.activeFilters);
 
-  const results = filteredResults();
+  const filtered = useMemo(() => {
+    if (!results || activeFilters.length === 0) return results;
+    return {
+      ...results,
+      features: results.features.filter((f: any) =>
+        activeFilters.every((filter) => {
+          const v = f.properties?.[filter.field];
+          if (v === undefined) return false;
+          if (filter.op === "gt") return v > filter.value;
+          if (filter.op === "lt") return v < filter.value;
+          return v === filter.value;
+        })
+      ),
+    };
+  }, [results, activeFilters]);
 
-  // Separate features by type for layer styling
   const changeMaskFeatures = useMemo(() => {
-    if (!results) return null;
-    const features = results.features.filter(
+    if (!filtered) return null;
+    const features = filtered.features.filter(
       (f) => (f.properties as any)?.type === "change_mask"
     );
     return features.length > 0
-      ? ({ ...results, features } as GeoJSON.FeatureCollection)
+      ? ({ ...filtered, features } as GeoJSON.FeatureCollection)
       : null;
-  }, [results]);
+  }, [filtered]);
 
   const highlightFeatures = useMemo(() => {
-    if (!results) return null;
-    const features = results.features.filter(
+    if (!filtered) return null;
+    const features = filtered.features.filter(
       (f) => (f.properties as any)?.type === "highlight"
     );
     return features.length > 0
-      ? ({ ...results, features } as GeoJSON.FeatureCollection)
+      ? ({ ...filtered, features } as GeoJSON.FeatureCollection)
       : null;
-  }, [results]);
+  }, [filtered]);
 
-  const onViewStateChange = useCallback(
-    ({ viewState }: any) => {
-      setViewport({
+  const onViewStateChange = useCallback(({ viewState }: any) => {
+    useMapStore.setState({
+      viewport: {
         longitude: viewState.longitude,
         latitude: viewState.latitude,
         zoom: viewState.zoom,
         pitch: viewState.pitch,
         bearing: viewState.bearing,
-      });
-    },
-    [setViewport]
-  );
+      },
+    });
+  }, []);
 
   const onFeatureClick = useCallback((info: any) => {
     console.log("[satQuery] Feature clicked:", info.object?.properties);
@@ -68,7 +79,7 @@ export default function MapOrchestrator({ children }: MapOrchestratorProps) {
       new TileLayer({
         id: "imagery-before",
         data: imagery?.beforeUrl ?? undefined,
-        visible: activeLayers.has("imagery-before"),
+        visible: !!activeLayers["imagery-before"],
         opacity: splitMode ? 0.5 : 1,
       })
     );
@@ -78,7 +89,7 @@ export default function MapOrchestrator({ children }: MapOrchestratorProps) {
       new TileLayer({
         id: "imagery-after",
         data: imagery?.afterUrl ?? undefined,
-        visible: activeLayers.has("imagery-after") && splitMode,
+        visible: !!activeLayers["imagery-after"] && splitMode,
       })
     );
 
@@ -88,7 +99,7 @@ export default function MapOrchestrator({ children }: MapOrchestratorProps) {
         new GeoJsonLayer({
           id: "change-mask",
           data: changeMaskFeatures,
-          visible: activeLayers.has("change-mask"),
+          visible: !!activeLayers["change-mask"],
           filled: true,
           stroked: true,
           getFillColor: [255, 200, 0, 80],
@@ -122,7 +133,7 @@ export default function MapOrchestrator({ children }: MapOrchestratorProps) {
         new GeoJsonLayer({
           id: "highlights",
           data: highlightFeatures,
-          visible: activeLayers.has("highlight-region"),
+          visible: !!activeLayers["highlight-region"],
           filled: true,
           getFillColor: [255, 50, 50, 120],
           lineWidthMinPixels: 2,

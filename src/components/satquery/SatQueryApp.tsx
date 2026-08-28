@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router";
 import { useMapStore } from "@/stores/map-store";
@@ -23,7 +23,7 @@ function parseFollowUpFilter(query: string): FeatureFilter | null {
   const ltArea = lower.match(/(?:changes?|area|size)\s*<\s*(\d+)/);
   if (ltArea) return { field: "area_ha", op: "lt", value: Number(ltArea[1]) };
 
-  const gtConf = lower.match(/(?:confidence|conf)\s*>?\s*\(?\s*(\d+)/);
+  const gtConf = lower.match(/(?:confidence|conf)\s*\(?\s*>?\s*(\d+)/);
   if (gtConf)
     return {
       field: "confidence",
@@ -35,11 +35,11 @@ function parseFollowUpFilter(query: string): FeatureFilter | null {
 }
 
 // ── Interaction pipeline ─────────────────────────────────────────
-async function handleQuery(query: string) {
+async function handleQuery(query: string, signal: number) {
   const analysis = useAnalysisStore.getState();
   const map = useMapStore.getState();
 
-  // ── "Converse" step: client-side filter on existing results ──
+  // ── "Converse" step: client-side filter ──
   if (analysis.status === "success" && analysis.results) {
     const filter = parseFollowUpFilter(query);
     if (filter) {
@@ -64,37 +64,43 @@ async function handleQuery(query: string) {
   // ── New analysis: Ask → Think → Focus → Reveal ──
   analysis.startPipeline(query);
 
-  // ── Think: backend agent processes query ──
   analysis.setStatusMessage("Understanding query…");
   const result = await processQuery(query);
 
+  // Abort if a newer pipeline started while we were awaiting
+  if (signal !== useAnalysisStore.getState()._pipelineId) return;
+
   analysis.setStatusMessage("Processing…");
 
-  // ── Focus: smooth flyTo to target bounding box ──
+  // ── Focus ──
   map.flyTo(result.boundingBox, { duration: 1200 });
 
-  // ── Reveal: mount imagery layers ──
-  analysis.setImagery({
+  // ── Reveal imagery ──
+  useAnalysisStore.getState().setImagery({
     beforeUrl: buildTiTilerUrl(result.beforeScene),
     afterUrl: buildTiTilerUrl(result.afterScene),
     dates: [result.startDate, result.endDate],
   });
 
-  // ── Reveal: mount change mask + highlights ──
-  analysis.setChangeMask(result.changeMaskGeoJSON);
-  if (result.highlightsGeoJSON) {
-    analysis.setHighlights(result.highlightsGeoJSON);
-  }
-  analysis.setConfidence(result.confidence);
+  // Abort check after imagery
+  if (signal !== useAnalysisStore.getState()._pipelineId) return;
 
-  // ── Enable all layers ──
-  map.setLayerVisible("imagery-before", true);
-  map.setLayerVisible("imagery-after", true);
-  map.setLayerVisible("change-mask", true);
-  map.setLayerVisible("highlight-region", true);
+  // ── Reveal results ──
+  useAnalysisStore.getState().setChangeMask(result.changeMaskGeoJSON);
+  if (result.highlightsGeoJSON) {
+    useAnalysisStore.getState().setHighlights(result.highlightsGeoJSON);
+  }
+  useAnalysisStore.getState().setConfidence(result.confidence);
+
+  // ── Enable layers ──
+  const mapNow = useMapStore.getState();
+  mapNow.setLayerVisible("imagery-before", true);
+  mapNow.setLayerVisible("imagery-after", true);
+  mapNow.setLayerVisible("change-mask", true);
+  mapNow.setLayerVisible("highlight-region", true);
 
   // ── Done ──
-  analysis.complete(result.explanation);
+  useAnalysisStore.getState().complete(result.explanation);
 }
 
 // ── Component ────────────────────────────────────────────────────
@@ -102,9 +108,14 @@ export default function SatQueryApp() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const panelOpen = useMapStore((s) => s.panelOpen);
+  const pipelineIdRef = useRef(0);
 
   const handleSend = useCallback((query: string) => {
-    handleQuery(query).catch((err) => {
+    const id = ++pipelineIdRef.current;
+    // Write pipelineId into store so handleQuery can check it after await
+    (useAnalysisStore.getState() as any)._pipelineId = id;
+
+    handleQuery(query, id).catch((err) => {
       console.error("[satQuery] Pipeline failed:", err);
       useAnalysisStore.getState().fail("Analysis failed. Please try again.");
     });

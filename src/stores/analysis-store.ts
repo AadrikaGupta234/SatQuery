@@ -40,60 +40,8 @@ export interface ChatMessage {
   status?: PipelineStatus;
 }
 
-// ── Store interface ──────────────────────────────────────────────
-interface AnalysisStore {
-  // Pipeline
-  status: PipelineStatus;
-  statusMessage: string;
-
-  // Imagery
-  imagery: ImageryEndpoints | null;
-
-  // GeoJSON — unified FeatureCollection, typed features
-  results: GeoJSON.FeatureCollection | null;
-
-  // Metadata
-  confidence: number;
-  explanation: string;
-
-  // Query context
-  query: string;
-  targetBBox: BBox | null;
-
-  // Client-side filtering ("Converse" step)
-  activeFilters: FeatureFilter[];
-  filteredResults: () => GeoJSON.FeatureCollection | null;
-
-  // Chat
-  messages: ChatMessage[];
-
-  // ── Individual setters (called by pipeline) ──
-  setStatus: (status: PipelineStatus) => void;
-  setStatusMessage: (msg: string) => void;
-  setImagery: (imagery: ImageryEndpoints) => void;
-  setChangeMask: (fc: GeoJSON.FeatureCollection) => void;
-  setHighlights: (fc: GeoJSON.FeatureCollection) => void;
-  setConfidence: (n: number) => void;
-  setExplanation: (text: string) => void;
-  setTargetBBox: (bbox: BBox) => void;
-
-  // ── Convenience: start/complete/fail ──
-  startPipeline: (query: string) => void;
-  complete: (explanation: string) => void;
-  fail: (reason: string) => void;
-  reset: () => void;
-
-  // ── Filters ──
-  addFilter: (filter: FeatureFilter) => void;
-  clearFilters: () => void;
-
-  // ── Chat ──
-  addMessage: (msg: ChatMessage) => void;
-}
-
 // ── Helpers ──────────────────────────────────────────────────────
 
-/** Merge changeMask + highlights into a single `results` FeatureCollection */
 function mergeResults(
   changeMask: GeoJSON.FeatureCollection | null,
   highlights: GeoJSON.FeatureCollection | null
@@ -123,14 +71,71 @@ function applyFilters(
   };
 }
 
-// ── Store ────────────────────────────────────────────────────────
+// ── Public store interface (no internal fields leaked) ───────────
 
-interface AnalysisStoreState {
-  _changeMask: GeoJSON.FeatureCollection | null;
-  _highlights: GeoJSON.FeatureCollection | null;
+interface AnalysisStore {
+  // Pipeline
+  status: PipelineStatus;
+  statusMessage: string;
+
+  // Imagery
+  imagery: ImageryEndpoints | null;
+
+  // GeoJSON — unified FeatureCollection
+  results: GeoJSON.FeatureCollection | null;
+
+  // Metadata
+  confidence: number;
+  explanation: string;
+
+  // Query context
+  query: string;
+  targetBBox: BBox | null;
+
+  // Client-side filtering ("Converse" step)
+  activeFilters: FeatureFilter[];
+
+  // Chat
+  messages: ChatMessage[];
+
+  // ── Individual setters ──
+  setStatus: (status: PipelineStatus) => void;
+  setStatusMessage: (msg: string) => void;
+  setImagery: (imagery: ImageryEndpoints) => void;
+  setChangeMask: (fc: GeoJSON.FeatureCollection) => void;
+  setHighlights: (fc: GeoJSON.FeatureCollection) => void;
+  setConfidence: (n: number) => void;
+  setExplanation: (text: string) => void;
+  setTargetBBox: (bbox: BBox) => void;
+
+  // ── Convenience ──
+  startPipeline: (query: string) => void;
+  complete: (explanation: string) => void;
+  fail: (reason: string) => void;
+  reset: () => void;
+
+  // ── Filters ──
+  addFilter: (filter: FeatureFilter) => void;
+  clearFilters: () => void;
+
+  // ── Derived ──
+  filteredResults: () => GeoJSON.FeatureCollection | null;
+
+  // ── Chat ──
+  addMessage: (msg: ChatMessage) => void;
 }
 
-export const useAnalysisStore = create<AnalysisStore & AnalysisStoreState>(
+// ── Internal state (not exposed in public type) ──────────────────
+
+interface InternalState {
+  _changeMask: GeoJSON.FeatureCollection | null;
+  _highlights: GeoJSON.FeatureCollection | null;
+  _pipelineId: number;
+}
+
+// ── Store ────────────────────────────────────────────────────────
+
+export const useAnalysisStore = create<AnalysisStore & InternalState>(
   (set, get) => ({
     status: "idle",
     statusMessage: "",
@@ -138,6 +143,7 @@ export const useAnalysisStore = create<AnalysisStore & AnalysisStoreState>(
     results: null,
     _changeMask: null,
     _highlights: null,
+    _pipelineId: 0,
     confidence: 0,
     explanation: "",
     query: "",
@@ -149,28 +155,19 @@ export const useAnalysisStore = create<AnalysisStore & AnalysisStoreState>(
 
     setStatus: (status) => set({ status }),
     setStatusMessage: (statusMessage) => set({ statusMessage }),
-
     setImagery: (imagery) => set({ imagery }),
 
-    setChangeMask: (fc) => {
-      set((s) => {
-        const _changeMask = fc;
-        return {
-          _changeMask,
-          results: mergeResults(_changeMask, s._highlights),
-        };
-      });
-    },
+    setChangeMask: (fc) =>
+      set((s) => ({
+        _changeMask: fc,
+        results: mergeResults(fc, s._highlights),
+      })),
 
-    setHighlights: (fc) => {
-      set((s) => {
-        const _highlights = fc;
-        return {
-          _highlights,
-          results: mergeResults(s._changeMask, _highlights),
-        };
-      });
-    },
+    setHighlights: (fc) =>
+      set((s) => ({
+        _highlights: fc,
+        results: mergeResults(s._changeMask, fc),
+      })),
 
     setConfidence: (confidence) => set({ confidence }),
     setExplanation: (explanation) => set({ explanation }),
@@ -179,17 +176,18 @@ export const useAnalysisStore = create<AnalysisStore & AnalysisStoreState>(
     // ── Convenience ─────────────────────────────────────────────
 
     startPipeline: (query) => {
+      const now = Date.now();
       const userMsg: ChatMessage = {
-        id: `user-${Date.now()}`,
+        id: `user-${now}`,
         role: "user",
         content: query,
-        timestamp: Date.now(),
+        timestamp: now,
       };
       const procMsg: ChatMessage = {
-        id: `proc-${Date.now()}`,
+        id: `proc-${now}`,
         role: "assistant",
         content: "",
-        timestamp: Date.now(),
+        timestamp: now,
         status: "processing",
       };
 
