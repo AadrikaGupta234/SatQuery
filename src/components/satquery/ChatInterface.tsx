@@ -1,13 +1,9 @@
+// ChatInterface — NLP input & contextual follow-ups
 import { useState, useRef, useEffect } from "react";
 import { useAnalysisStore } from "@/stores/analysis-store";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Send,
-  Satellite,
-  Loader2,
-  AlertCircle,
-} from "lucide-react";
+import { Send, Satellite, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SUGGESTIONS = [
@@ -17,7 +13,6 @@ const SUGGESTIONS = [
   "Identify flood damage along Mekong Delta",
 ];
 
-// Follow-up suggestions shown after a successful analysis
 const FOLLOW_UPS = [
   "Only show changes > 1 hectare",
   "Show only high confidence (>90%)",
@@ -25,9 +20,16 @@ const FOLLOW_UPS = [
 ];
 
 interface ChatInterfaceProps {
-  onSend: (query: string) => void;
+  onSend?: (query: string) => void;
 }
 
+/**
+ * NLP input & contextual follow-ups.
+ *
+ * `onSend` is optional — if omitted the component falls back to
+ * calling `useAnalysisStore.startPipeline` directly so that
+ * suggestion clicks always work even if the parent forgets the prop.
+ */
 export default function ChatInterface({ onSend }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -38,6 +40,21 @@ export default function ChatInterface({ onSend }: ChatInterfaceProps) {
 
   const processing = status === "processing";
 
+  // Stable send function — use prop if provided, otherwise store fallback
+  const send = useRef(onSend);
+  useEffect(() => {
+    send.current = onSend;
+  }, [onSend]);
+
+  const dispatch = (query: string) => {
+    if (send.current) {
+      send.current(query);
+    } else {
+      // Fallback: call pipeline directly from store
+      useAnalysisStore.getState().startPipeline(query);
+    }
+  };
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -46,7 +63,7 @@ export default function ChatInterface({ onSend }: ChatInterfaceProps) {
 
   const handleSubmit = () => {
     if (!input.trim() || processing) return;
-    onSend(input.trim());
+    dispatch(input.trim());
     setInput("");
   };
 
@@ -58,10 +75,9 @@ export default function ChatInterface({ onSend }: ChatInterfaceProps) {
   };
 
   const handleSuggestion = (s: string) => {
-    if (!processing) onSend(s);
+    if (!processing) dispatch(s);
   };
 
-  // Show follow-ups after success
   const showFollowUps = status === "success" && messages.length > 0;
 
   return (
@@ -82,7 +98,6 @@ export default function ChatInterface({ onSend }: ChatInterfaceProps) {
       {/* Messages */}
       <ScrollArea className="flex-1 px-4">
         <div ref={scrollRef} className="space-y-4 py-4">
-          {/* Empty state with suggestions */}
           {messages.length === 0 && (
             <div className="flex flex-col items-center py-8 text-center">
               <div className="mb-3 flex size-10 items-center justify-center rounded-full bg-muted/50">
@@ -108,7 +123,6 @@ export default function ChatInterface({ onSend }: ChatInterfaceProps) {
             </div>
           )}
 
-          {/* Chat messages */}
           {messages.map((msg) => (
             <div key={msg.id} className="space-y-2">
               <div
@@ -140,7 +154,6 @@ export default function ChatInterface({ onSend }: ChatInterfaceProps) {
             </div>
           ))}
 
-          {/* "Converse" step: contextual follow-ups */}
           {showFollowUps && (
             <div className="flex flex-col gap-1.5 pl-4">
               <p className="text-[10px] text-muted-foreground/50">
